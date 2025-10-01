@@ -1,0 +1,166 @@
+'use client'
+
+import { useEffect, useRef, useState } from 'react'
+
+interface FallbackMapProps {
+  width?: string
+  height?: string
+  className?: string
+}
+
+export default function FallbackMap({ 
+  width = '100%', 
+  height = '452px', 
+  className = ''
+}: FallbackMapProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [markers] = useState([
+    { x: 150, y: 120, title: '다회용컵 카페', icon: '♻️' },
+    { x: 280, y: 100, title: '재활용 센터', icon: '♻️' },
+    { x: 120, y: 200, title: '텀블러 포인트', icon: '🏪' },
+    { x: 320, y: 150, title: '세척기', icon: '🧼' },
+    { x: 200, y: 180, title: '반납함', icon: '🗑️' },
+    { x: 100, y: 300, title: '에코 카페', icon: '♻️' },
+    { x: 350, y: 280, title: '친환경 매장', icon: '🏪' }
+  ])
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    // 캔버스 크기 설정
+    const rect = canvas.getBoundingClientRect()
+    canvas.width = rect.width * window.devicePixelRatio
+    canvas.height = rect.height * window.devicePixelRatio
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio)
+
+    // 배경 그리기 (지도 스타일)
+    const drawBackground = () => {
+      // 베이스 배경
+      ctx.fillStyle = '#f0f8ff'
+      ctx.fillRect(0, 0, rect.width, rect.height)
+      
+      // 도로 패턴
+      ctx.strokeStyle = '#e0e0e0'
+      ctx.lineWidth = 2
+      for (let i = 0; i < rect.width; i += 50) {
+        ctx.beginPath()
+        ctx.moveTo(i, 0)
+        ctx.lineTo(i, rect.height)
+        ctx.stroke()
+      }
+      for (let i = 0; i < rect.height; i += 50) {
+        ctx.beginPath()
+        ctx.moveTo(0, i)
+        ctx.lineTo(rect.width, i)
+        ctx.stroke()
+      }
+
+      // 주요 도로
+      ctx.strokeStyle = '#d0d0d0'
+      ctx.lineWidth = 4
+      ctx.beginPath()
+      ctx.moveTo(0, rect.height / 2)
+      ctx.lineTo(rect.width, rect.height / 2)
+      ctx.stroke()
+      
+      ctx.beginPath()
+      ctx.moveTo(rect.width / 2, 0)
+      ctx.lineTo(rect.width / 2, rect.height)
+      ctx.stroke()
+
+      // 가상의 건물들
+      ctx.fillStyle = '#f5f5f5'
+      for (let i = 0; i < 10; i++) {
+        const x = Math.random() * (rect.width - 40)
+        const y = Math.random() * (rect.height - 40)
+        const w = 20 + Math.random() * 20
+        const h = 20 + Math.random() * 20
+        ctx.fillRect(x, y, w, h)
+        
+        ctx.strokeStyle = '#ccc'
+        ctx.lineWidth = 1
+        ctx.strokeRect(x, y, w, h)
+      }
+    }
+
+    // 마커 그리기
+    const drawMarkers = () => {
+      markers.forEach(marker => {
+        // 마커 배경 (둥근 사각형 수동 그리기)
+        ctx.fillStyle = 'rgba(112,112,112,0.9)'
+        const rectX = marker.x - 35
+        const rectY = marker.y - 15
+        const rectW = 70
+        const rectH = 30
+        const radius = 15
+        
+        ctx.beginPath()
+        ctx.moveTo(rectX + radius, rectY)
+        ctx.lineTo(rectX + rectW - radius, rectY)
+        ctx.quadraticCurveTo(rectX + rectW, rectY, rectX + rectW, rectY + radius)
+        ctx.lineTo(rectX + rectW, rectY + rectH - radius)
+        ctx.quadraticCurveTo(rectX + rectW, rectY + rectH, rectX + rectW - radius, rectY + rectH)
+        ctx.lineTo(rectX + radius, rectY + rectH)
+        ctx.quadraticCurveTo(rectX, rectY + rectH, rectX, rectY + rectH - radius)
+        ctx.lineTo(rectX, rectY + radius)
+        ctx.quadraticCurveTo(rectX, rectY, rectX + radius, rectY)
+        ctx.closePath()
+        ctx.fill()
+        
+        // 마커 테두리
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)'
+        ctx.lineWidth = 1
+        ctx.stroke()
+        
+        // 마커 텍스트
+        ctx.fillStyle = 'white'
+        ctx.font = 'bold 12px Arial'
+        ctx.textAlign = 'center'
+        ctx.fillText(`${marker.icon} ${marker.title}`, marker.x, marker.y + 3)
+        
+        // 마커 포인터
+        ctx.fillStyle = 'rgba(112,112,112,0.9)'
+        ctx.beginPath()
+        ctx.moveTo(marker.x - 5, marker.y + 15)
+        ctx.lineTo(marker.x + 5, marker.y + 15)
+        ctx.lineTo(marker.x, marker.y + 25)
+        ctx.closePath()
+        ctx.fill()
+      })
+    }
+
+    drawBackground()
+    drawMarkers()
+
+    // 우하단에 "임시 지도" 라벨
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'
+    ctx.font = '12px Arial'
+    ctx.textAlign = 'right'
+    ctx.fillText('임시 지도 (카카오맵 로드 대기중)', rect.width - 10, rect.height - 10)
+
+  }, [markers])
+
+  return (
+    <div className={`relative ${className}`} style={{ width, height }}>
+      <canvas 
+        ref={canvasRef}
+        style={{ width: '100%', height: '100%' }}
+        className="rounded-md bg-blue-50"
+      />
+      
+      {/* 카카오맵 재시도 버튼 */}
+      <div className="absolute top-2 right-2">
+        <button 
+          onClick={() => window.location.reload()}
+          className="bg-white/90 hover:bg-white text-xs px-2 py-1 rounded shadow-sm border"
+        >
+          🔄 카카오맵 재시도
+        </button>
+      </div>
+    </div>
+  )
+}
