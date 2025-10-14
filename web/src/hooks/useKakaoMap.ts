@@ -49,35 +49,14 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
     
     script.onload = () => {
       if (checkScript()) {
-        console.log('✅ 카카오맵 API 로드 완료')
+        // API 로드 완료
       } else {
-        console.error('❌ 카카오맵 API 로드 후에도 window.kakao.maps가 없습니다')
         setError('카카오맵 API 객체를 찾을 수 없습니다.')
         setIsLoading(false)
       }
     }
     
-    script.onerror = (err) => {
-      console.error('❌ 카카오맵 API 스크립트 로드 실패:', {
-        error: err,
-        scriptSrc: script.src,
-        readyState: script.readyState,
-        apiKey: apiKey ? `${apiKey.substring(0, 8)}...` : 'null'
-      })
-      
-      // 스크립트 URL 직접 테스트
-      fetch(script.src)
-        .then(response => {
-          console.log('직접 fetch 테스트:', {
-            status: response.status,
-            statusText: response.statusText,
-            ok: response.ok
-          })
-        })
-        .catch(fetchErr => {
-          console.error('직접 fetch도 실패:', fetchErr)
-        })
-      
+    script.onerror = () => {
       setError('카카오맵 API 스크립트 로드에 실패했습니다. 네트워크 연결을 확인해주세요.')
       setIsLoading(false)
     }
@@ -103,15 +82,9 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
             
             mapInstance.current = new window.kakao.maps.Map(mapRef.current, mapOptions)
             setIsLoading(false)
-            console.log('✅ 카카오맵 초기화 완료:', {
-              center: mapOptions.center,
-              level: mapOptions.level,
-              container: mapRef.current
-            })
           }
         })
       } catch (err) {
-        console.error('❌ 맵 초기화 오류:', err)
         setError(`맵 초기화에 실패했습니다: ${err instanceof Error ? err.message : '알 수 없는 오류'}`)
         setIsLoading(false)
       }
@@ -119,6 +92,96 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
 
     initializeMap()
   }, [isScriptLoaded, options.center?.lat, options.center?.lng, options.level])
+
+  // 마커 스타일 생성 함수
+  const getMarkerStyle = (markerData: MarkerData) => {
+    const baseStyle = {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontWeight: 'bold',
+      textAlign: 'center',
+      whiteSpace: 'nowrap',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+      position: 'relative',
+      border: '2px solid white'
+    }
+
+    switch (markerData.markerStyle) {
+      case 'blue-rect':
+        return {
+          ...baseStyle,
+          background: '#4285F4',
+          borderRadius: '12px',
+          padding: '8px 12px',
+          color: 'white',
+          fontSize: '13px',
+          minWidth: '50px',
+          height: '28px',
+          fontFamily: 'Arial, sans-serif'
+        }
+      case 'green-circle':
+        return {
+          ...baseStyle,
+          background: '#34A853',
+          borderRadius: '50%',
+          width: '36px',
+          height: '36px',
+          color: 'white',
+          fontSize: '18px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }
+      case 'yellow-circle':
+        return {
+          ...baseStyle,
+          background: '#FBBC04',
+          borderRadius: '50%',
+          width: '36px',
+          height: '36px',
+          color: '#1a73e8',
+          fontSize: '18px',
+          fontWeight: '900',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }
+      default:
+        return {
+          ...baseStyle,
+          background: 'rgba(112,112,112,0.9)',
+          borderRadius: '13px',
+          padding: '8px 12px',
+          color: 'white',
+          fontSize: '14px',
+          border: '1px solid rgba(255,255,255,0.2)'
+        }
+    }
+  }
+
+  // 플러스 아이콘 생성 함수
+  const createPlusIcon = () => {
+    return `
+      <div style="
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        width: 14px;
+        height: 14px;
+        background: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        color: #333;
+        border: 1px solid #ddd;
+        font-weight: bold;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      ">+</div>
+    `
+  }
 
   // 마커 추가 함수
   const addMarkers = (markers: MarkerData[]) => {
@@ -129,29 +192,21 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
 
     markers.forEach((markerData) => {
       try {
-        // 마커 생성
-        const marker = new window.kakao.maps.Marker({
-          position: new window.kakao.maps.LatLng(markerData.lat, markerData.lng),
-          map: mapInstance.current
-        })
+        const markerStyle = getMarkerStyle(markerData)
+        const plusIcon = createPlusIcon()
+        
+        // 스타일을 CSS 문자열로 변환
+        const styleString = Object.entries(markerStyle)
+          .map(([key, value]) => `${key.replace(/([A-Z])/g, '-$1').toLowerCase()}: ${value}`)
+          .join('; ')
 
         // 커스텀 오버레이 생성
         const overlay = new window.kakao.maps.CustomOverlay({
           position: new window.kakao.maps.LatLng(markerData.lat, markerData.lng),
           content: `
-            <div style="
-              background: rgba(112,112,112,0.9);
-              border-radius: 13px;
-              padding: 8px 12px;
-              color: white;
-              font-size: 14px;
-              font-weight: bold;
-              text-align: center;
-              white-space: nowrap;
-              box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-              border: 1px solid rgba(255,255,255,0.2);
-            ">
-              ${markerData.icon} ${markerData.title}
+            <div style="${styleString}">
+              ${plusIcon}
+              ${markerData.icon}
             </div>
           `,
           yAnchor: 1.2
