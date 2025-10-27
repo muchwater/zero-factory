@@ -26,66 +26,79 @@ enum TransactionType {
   REDEEM
 }
 
+enum PlaceStateType {
+  PENDING
+  ACTIVE
+  INACTIVE
+}
+
+enum BrandType {
+  SUNHWA
+  UTURN
+}
+
 model Place {
-  id          Int       @id @default(autoincrement())
-  name        String
-  description String?
-  address     String
-  category    PlaceCategory
-  location    Unsupported("geography(Point,4326)")?
-  types       PlaceType[]
+  id           Int                                   @id @default(autoincrement())
+  name         String
+  description  String?
+  address      String
+  category     PlaceCategory
+  location     Unsupported("geography(Point,4326)")?
+  types        PlaceType[]
   contact      String?
   openingHours StoreOpeningHour[]
   exceptions   StoreOpeningHourException[]
   transactions PointTransaction[]
+  state        PlaceStateType                        @default(PENDING)
+  brand        BrandType?
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model StoreOpeningHour {
-  id        Int    @id @default(autoincrement())
-  place     Place  @relation(fields: [placeId], references: [id])
+  id        Int     @id @default(autoincrement())
+  place     Place   @relation(fields: [placeId], references: [id])
   placeId   Int
-  dayOfWeek Int     // 0=일요일 ~ 6=토요일
+  dayOfWeek Int // 0=일요일 ~ 6=토요일
   isClosed  Boolean @default(false)
   openTime  String? // isClosed=false일 때만 유효
   closeTime String?
 }
 
 model StoreOpeningHourException {
-  id        Int    @id @default(autoincrement())
-  place     Place  @relation(fields: [placeId], references: [id])
-  placeId   Int
+  id      Int   @id @default(autoincrement())
+  place   Place @relation(fields: [placeId], references: [id])
+  placeId Int
 
   // 조건
-  weekOfMonth Int?      // 1=첫째주, 2=둘째주 … (null이면 무시)
-  dayOfWeek   Int?      // 특정 요일 (0=일요일 …)
+  weekOfMonth Int? // 1=첫째주, 2=둘째주 … (null이면 무시)
+  dayOfWeek   Int? // 특정 요일 (0=일요일 …)
   date        DateTime? // 특정 날짜 단위 예외 (null이면 무시)
 
   // 운영시간
-  isClosed   Boolean @default(false)
-  openTime   String?
-  closeTime  String?
+  isClosed  Boolean @default(false)
+  openTime  String?
+  closeTime String?
 }
 
 model Member {
-  id           String    @id @default(uuid()) // UUID로 보안 강화
+  id           String   @id @default(uuid()) // UUID로 보안 강화
   nickname     String?
-  deviceId     String    @unique
-  pointBalance Int       @default(0)
-  createdAt    DateTime  @default(now())
+  deviceId     String   @unique
+  pointBalance Int      @default(0)
+  createdAt    DateTime @default(now())
 
   transactions PointTransaction[]
 }
 
 model PointTransaction {
-  id        Int              @id @default(autoincrement())
-  member    Member           @relation(fields: [memberId], references: [id])
-  memberId  String
-  place     Place            @relation(fields: [placeId], references: [id])
+  id        Int             @id @default(autoincrement())
+  member    Member          @relation(fields: [memberId], references: [id])
+  memberId  String // 로그인 id로 사용할듯 ㅋㅋ
+  place     Place           @relation(fields: [placeId], references: [id])
   placeId   Int
   amount    Int
   type      TransactionType
-  createdAt DateTime         @default(now())
+  createdAt DateTime        @default(now())
 }
