@@ -26,50 +26,67 @@ async function main() {
   await prisma.place.deleteMany();
   await prisma.member.deleteMany();
 
-  const baseLng = 127.362;
-  const baseLat = 36.3731;
+  // 실제 유턴컵(다회용컵) 대여 가능 카페 데이터
+  const realCafes = [
+    {
+      name: '커피 볶는 집',
+      description: '유턴컵 (다회용컵) 대여 가능',
+      address: '대전광역시 유성구',
+      lat: 36.363414300,
+      lng: 127.357935057,
+      contact: '042-XXX-XXXX',
+    },
+    {
+      name: '노은도서관',
+      description: '유턴컵 (다회용컵) 대여 가능',
+      address: '대전광역시 유성구 노은동',
+      lat: 36.381493476,
+      lng: 127.320662759,
+      contact: null,
+    },
+    {
+      name: '유성구청',
+      description: '유턴컵 (다회용컵) 대여 가능',
+      address: '대전광역시 유성구 대학로 211',
+      lat: 36.362218923,
+      lng: 127.356148463,
+      contact: '042-611-5114',
+    },
+    {
+      name: '커피바 유성별',
+      description: '유턴컵 (다회용컵) 대여 가능',
+      address: '대전광역시 유성구',
+      lat: 36.361992296,
+      lng: 127.354850895,
+      contact: '042-XXX-XXXX',
+    },
+  ];
 
-  for (let i = 1; i <= 10; i++) {
-    const lng = baseLng + getRandomOffset();
-    const lat = baseLat + getRandomOffset();
-
+  // 각 카페를 데이터베이스에 추가
+  for (const cafe of realCafes) {
     await createPlaceWithLocation(
       {
-        name: `테스트 장소 ${i}`,
-        description: i % 2 === 0 ? '리필/반납 가능' : '친환경 상품 판매',
-        address: `대전광역시 유성구 테스트로 ${i}번길`,
-        category: i % 2 === 0 ? PlaceCategory.FACILITY : PlaceCategory.STORE,
-        types:
-          i % 3 === 0
-            ? [PlaceType.RETURN]
-            : i % 3 === 1
-              ? [PlaceType.RENT, PlaceType.BONUS]
-              : [PlaceType.CLEAN],
-        contact: i % 2 === 0 ? null : `010-0000-000${i}`,
+        name: cafe.name,
+        description: cafe.description,
+        address: cafe.address,
+        category: PlaceCategory.STORE,
+        types: [PlaceType.RENT, PlaceType.BONUS], // 대여 + 포인트 적립
+        contact: cafe.contact,
         openingHours: {
           create: Array.from({ length: 7 }).map((_, day) => ({
             dayOfWeek: day,
             isClosed: day === 0, // 일요일 휴무
             openTime: day === 0 ? null : '09:00',
-            closeTime: day === 0 ? null : '18:00',
+            closeTime: day === 0 ? null : '21:00', // 카페는 21시까지
           })),
         },
-        exceptions:
-          i === 1
-            ? {
-                create: [
-                  { weekOfMonth: 2, dayOfWeek: 1, isClosed: true },
-                  { date: new Date('2025-12-25'), openTime: '12:00', closeTime: '17:00' },
-                ],
-              }
-            : undefined,
       },
-      lng,
-      lat,
+      cafe.lng,
+      cafe.lat,
     );
   }
 
-  console.log('✅ 10 test places inserted within 100m');
+  console.log(`✅ ${realCafes.length}개의 실제 유턴컵 대여 카페가 추가되었습니다.`);
 }
 
 main()

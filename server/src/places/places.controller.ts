@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query, Logger } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { PlacesService } from './places.service';
 import { PlaceDto } from './dto/place.dto';
@@ -7,6 +7,8 @@ import { PlaceNearbyDto } from './dto/place-nearby.dto';
 @ApiTags('places')
 @Controller('places')
 export class PlacesController {
+  private readonly logger = new Logger(PlacesController.name);
+  
   constructor(private readonly placesService: PlacesService) {}
 
   @Get()
@@ -39,7 +41,9 @@ export class PlacesController {
     @Query('offset') offset = '0',
     @Query('types') types?: string,
   ) {
-    return this.placesService.getPlacesNearby(
+    this.logger.log(`📍 GET /places/nearby - lat=${lat}, lng=${lng}, radius=${radius}`);
+    
+    const result = await this.placesService.getPlacesNearby(
       Number(lat),
       Number(lng),
       Number(radius),
@@ -47,6 +51,9 @@ export class PlacesController {
       Number(offset),
       types ? types.split(',').map((t) => t.trim().toUpperCase()) : undefined,
     );
+    
+    this.logger.log(`✅ Found ${result.length} places`);
+    return result;
   }
 
   @Get(':id')

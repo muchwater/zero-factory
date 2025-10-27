@@ -21,8 +21,10 @@ export interface MarkerData {
   lng: number
   title: string
   icon: string
-  type?: 'cafe' | 'recycling' | 'point' | 'wash' | 'return' | 'seonhwa' | 'station'
+  type?: 'cafe' | 'recycling' | 'point' | 'wash' | 'return' | 'seonhwa' | 'station' | 'rent' | 'bonus' | 'clean' | 'default'
   markerStyle?: 'blue-rect' | 'green-circle' | 'yellow-circle' | 'default'
+  placeId?: number
+  onClick?: () => void
 }
 
 export interface KakaoMapOptions {

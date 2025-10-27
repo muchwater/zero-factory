@@ -32,6 +32,22 @@ export class PlaceNearbyDto {
   @ApiProperty({ description: '거리 (m)', example: 123.4 })
   distance: number;
 
+  @ApiProperty({ description: '위도', example: 36.3731 })
+  lat?: number;
+
+  @ApiProperty({ description: '경도', example: 127.362 })
+  lng?: number;
+
+  @ApiProperty({
+    description: '위치 정보',
+    example: { lat: 36.3731, lng: 127.362 },
+    required: false,
+  })
+  location?: {
+    lat: number;
+    lng: number;
+  };
+
   @ApiProperty({
     description: '오늘의 운영시간',
     example: { isClosed: false, openTime: '09:00', closeTime: '18:00', dayName: '월요일' },

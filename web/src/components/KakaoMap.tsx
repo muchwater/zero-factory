@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useKakaoMap } from '@/hooks/useKakaoMap'
 import MapControls from './MapControls'
 import type { MarkerData } from '@/types/kakao'
+import type { Place, PlaceNearby } from '@/types/api'
 
 interface KakaoMapProps {
   width?: string
@@ -11,6 +12,8 @@ interface KakaoMapProps {
   className?: string
   center?: { lat: number; lng: number }
   level?: number
+  places?: Place[] | PlaceNearby[]
+  onPlaceClick?: (place: Place | PlaceNearby) => void
 }
 
 export default function KakaoMap({ 
@@ -18,104 +21,58 @@ export default function KakaoMap({
   height = '452px', 
   className = '',
   center,
-  level 
+  level,
+  places = [],
+  onPlaceClick
 }: KakaoMapProps) {
   const { mapRef, mapInstance, isLoading, error, addMarkers, setLevel } = useKakaoMap({
     center,
     level
   })
 
-  // 기본 마커들 추가
+  // API 데이터를 기반으로 마커 생성
   useEffect(() => {
-    if (!mapInstance || isLoading) return
+    if (!mapInstance || isLoading || !places.length) return
 
-    const defaultMarkers: MarkerData[] = [
-      // 파란색 사각형 마커들 (선화 관련)
-      { 
-        lat: 37.5665, 
-        lng: 126.9780, 
-        title: '선화', 
-        icon: '선화',
-        type: 'seonhwa',
-        markerStyle: 'blue-rect'
-      },
-      { 
-        lat: 37.5700, 
-        lng: 126.9800, 
-        title: '선화', 
-        icon: '선화',
-        type: 'seonhwa',
-        markerStyle: 'blue-rect'
-      },
-      { 
-        lat: 37.5650, 
-        lng: 126.9750, 
-        title: '선화', 
-        icon: '선화',
-        type: 'seonhwa',
-        markerStyle: 'blue-rect'
-      },
-      
-      // 초록색 원형 마커들 (재활용 관련)
-      { 
-        lat: 37.5720, 
-        lng: 126.9850, 
-        title: '재활용센터', 
-        icon: '♻️',
-        type: 'recycling',
-        markerStyle: 'green-circle'
-      },
-      { 
-        lat: 37.5740, 
-        lng: 126.9870, 
-        title: '재활용센터', 
-        icon: '♻️',
-        type: 'recycling',
-        markerStyle: 'green-circle'
-      },
-      { 
-        lat: 37.5760, 
-        lng: 126.9840, 
-        title: '재활용센터', 
-        icon: '♻️',
-        type: 'recycling',
-        markerStyle: 'green-circle'
-      },
-      { 
-        lat: 37.5750, 
-        lng: 126.9820, 
-        title: '재활용센터', 
-        icon: '♻️',
-        type: 'recycling',
-        markerStyle: 'green-circle'
-      },
-      
-      // 노란색 원형 마커들 (스테이션 관련)
-      { 
-        lat: 37.5600, 
-        lng: 126.9700, 
-        title: '스테이션', 
-        icon: '🌀',
-        type: 'station',
-        markerStyle: 'yellow-circle'
-      },
-      { 
-        lat: 37.5580, 
-        lng: 126.9720, 
-        title: '스테이션', 
-        icon: '🌀',
-        type: 'station',
-        markerStyle: 'yellow-circle'
+    const placeMarkers: MarkerData[] = places.map((place) => {
+      // 장소 타입에 따른 아이콘과 스타일 결정
+      const getMarkerInfo = (types: string[]) => {
+        if (types.includes('RENT')) {
+          return { icon: '☕', style: 'blue-rect' as const, type: 'rent' as const }
+        }
+        if (types.includes('RETURN')) {
+          return { icon: '♻️', style: 'green-circle' as const, type: 'return' as const }
+        }
+        if (types.includes('BONUS')) {
+          return { icon: '🏪', style: 'yellow-circle' as const, type: 'bonus' as const }
+        }
+        if (types.includes('CLEAN')) {
+          return { icon: '🧼', style: 'green-circle' as const, type: 'clean' as const }
+        }
+        return { icon: '📍', style: 'default' as const, type: 'default' as const }
       }
-    ]
+
+      const markerInfo = getMarkerInfo(place.types)
+      
+      return {
+        lat: place.location?.lat || 0,
+        lng: place.location?.lng || 0,
+        title: place.name,
+        icon: markerInfo.icon,
+        type: markerInfo.type,
+        markerStyle: markerInfo.style,
+        placeId: place.id,
+        onClick: () => onPlaceClick?.(place)
+      }
+    }).filter(marker => marker.lat !== 0 && marker.lng !== 0) // 유효한 좌표만 필터링
 
     // 약간의 지연을 두어 맵이 완전히 로드된 후 마커 추가
     const timer = setTimeout(() => {
-      addMarkers(defaultMarkers)
+      addMarkers(placeMarkers)
     }, 100)
 
     return () => clearTimeout(timer)
-  }, [mapInstance, isLoading, addMarkers])
+  }, [mapInstance, isLoading, places, addMarkers, onPlaceClick])
 
   if (error) {
     return (

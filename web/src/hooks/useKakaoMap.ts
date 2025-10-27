@@ -204,13 +204,18 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
         const overlay = new window.kakao.maps.CustomOverlay({
           position: new window.kakao.maps.LatLng(markerData.lat, markerData.lng),
           content: `
-            <div style="${styleString}">
+            <div style="${styleString}" class="marker-overlay" data-place-id="${markerData.placeId || ''}">
               ${plusIcon}
               ${markerData.icon}
             </div>
           `,
           yAnchor: 1.2
         })
+
+        // 클릭 이벤트 추가
+        if (markerData.onClick) {
+          window.kakao.maps.event.addListener(overlay, 'click', markerData.onClick)
+        }
 
         overlay.setMap(mapInstance.current)
       } catch (err) {
