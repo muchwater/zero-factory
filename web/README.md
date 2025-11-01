@@ -18,17 +18,35 @@
 
 ## 설치 및 실행
 
-### 1. 의존성 설치
+### Docker로 실행 (권장)
+
+프로젝트 루트 디렉토리에서 실행하세요:
+
+```bash
+# 프로젝트 루트로 이동
+cd ..
+
+# Docker Compose로 전체 서비스 실행
+docker compose up -d
+```
+
+브라우저에서 [http://localhost:3001](http://localhost:3001)로 접속하세요.
+
+자세한 내용은 [루트 디렉토리의 README.md](../README.md)를 참조하세요.
+
+### 로컬 개발 환경 실행
+
+#### 1. 의존성 설치
 ```bash
 npm install
 ```
 
-### 2. 개발 서버 실행
+#### 2. 개발 서버 실행
 ```bash
 npm run dev
 ```
 
-### 3. 브라우저에서 확인
+#### 3. 브라우저에서 확인
 [http://localhost:3000](http://localhost:3000)에서 앱을 확인할 수 있습니다.
 
 ## 프로젝트 구조
