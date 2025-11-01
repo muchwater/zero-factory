@@ -5,14 +5,14 @@ import { PrismaService } from '../prisma/prisma.service';
 export class MembersService {
   constructor(private prisma: PrismaService) {}
 
-  async findOrCreate(deviceId: string) {
+  async findOrCreate(nickname: string) {
     let member = await this.prisma.member.findUnique({
-      where: { deviceId },
+      where: { nickname },
     });
 
     if (!member) {
       member = await this.prisma.member.create({
-        data: { deviceId },
+        data: { nickname },
       });
     }
 
