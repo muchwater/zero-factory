@@ -84,8 +84,8 @@ model StoreOpeningHourException {
 
 model Member {
   id           String   @id @default(uuid()) // UUID로 보안 강화
-  nickname     String?
-  deviceId     String   @unique
+  nickname     String   @unique
+  deviceId     String?  @unique
   pointBalance Int      @default(0)
   createdAt    DateTime @default(now())
 
@@ -95,7 +95,7 @@ model Member {
 model PointTransaction {
   id        Int             @id @default(autoincrement())
   member    Member          @relation(fields: [memberId], references: [id])
-  memberId  String // 로그인 id로 사용할듯 ㅋㅋ
+  memberId  String
   place     Place           @relation(fields: [placeId], references: [id])
   placeId   Int
   amount    Int
