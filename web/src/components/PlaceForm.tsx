@@ -87,7 +87,7 @@ export default function PlaceForm({ onSubmit, isSubmitting = false }: PlaceFormP
     }))
   }
 
-  // 카카오 주소 검색 (Kakao Maps SDK Geocoder 사용)
+  // 카카오 주소 및 키워드 검색 (장소명, 건물명 포함)
   const searchAddress = async (query: string) => {
     if (!query.trim()) {
       setAddressSuggestions([])
@@ -102,29 +102,53 @@ export default function PlaceForm({ onSubmit, isSubmitting = false }: PlaceFormP
     }
 
     try {
+      const results: any[] = []
+      
+      // 1. 키워드 검색 (장소명, 건물명 검색)
+      const places = new window.kakao.maps.services.Places()
+      
+      await new Promise((resolve) => {
+        places.keywordSearch(query, (placeResults: any, placeStatus: any) => {
+          if (placeStatus === window.kakao.maps.services.Status.OK) {
+            const placesSuggestions = placeResults.map((item: any) => ({
+              address_name: item.address_name,
+              road_address_name: item.road_address_name || '',
+              place_name: item.place_name,
+              x: item.x,
+              y: item.y,
+              type: 'place' // 장소 검색 결과임을 표시
+            }))
+            results.push(...placesSuggestions)
+          }
+          resolve(null)
+        })
+      })
+      
+      // 2. 주소 검색 (지번/도로명 주소)
       const geocoder = new window.kakao.maps.services.Geocoder()
       
-      geocoder.addressSearch(query, (result: any, status: any) => {
-        if (status === window.kakao.maps.services.Status.OK) {
-          // 결과를 addressSuggestions 형식으로 변환
-          const suggestions = result.map((item: any) => ({
-            address_name: item.address_name,
-            road_address_name: item.road_address?.address_name || '',
-            x: item.x,
-            y: item.y
-          }))
-          
-          console.log('주소 검색 결과:', suggestions.length, '건')
-          setAddressSuggestions(suggestions)
-          setShowSuggestions(true)
-        } else {
-          console.log('주소 검색 결과 없음')
-          setAddressSuggestions([])
-          setShowSuggestions(false)
-        }
+      await new Promise((resolve) => {
+        geocoder.addressSearch(query, (addressResults: any, addressStatus: any) => {
+          if (addressStatus === window.kakao.maps.services.Status.OK) {
+            const addressSuggestions = addressResults.map((item: any) => ({
+              address_name: item.address_name,
+              road_address_name: item.road_address?.address_name || '',
+              x: item.x,
+              y: item.y,
+              type: 'address' // 주소 검색 결과임을 표시
+            }))
+            results.push(...addressSuggestions)
+          }
+          resolve(null)
+        })
       })
+      
+      console.log('검색 결과:', results.length, '건')
+      setAddressSuggestions(results)
+      setShowSuggestions(results.length > 0)
+      
     } catch (error) {
-      console.error('주소 검색 오류:', error)
+      console.error('검색 오류:', error)
       setAddressSuggestions([])
       setShowSuggestions(false)
     }
@@ -313,7 +337,13 @@ export default function PlaceForm({ onSubmit, isSubmitting = false }: PlaceFormP
                   onClick={() => selectAddress(suggestion)}
                   className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
                 >
-                  <div className="font-medium">{suggestion.address_name}</div>
+                  {/* 장소명이 있으면 표시 */}
+                  {suggestion.place_name && (
+                    <div className="font-bold text-blue-600">{suggestion.place_name}</div>
+                  )}
+                  <div className={suggestion.place_name ? "text-xs" : "font-medium"}>
+                    {suggestion.address_name}
+                  </div>
                   {suggestion.road_address_name && (
                     <div className="text-xs text-gray-500">{suggestion.road_address_name}</div>
                   )}
