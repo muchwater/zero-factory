@@ -8,10 +8,17 @@ export class MemberResponseDto {
   id: string;
 
   @ApiProperty({
+    example: '홍길동',
+    description: '사용자 닉네임',
+  })
+  nickname: string;
+
+  @ApiProperty({
     example: 'device-uuid-1234',
     description: '클라이언트에서 전달한 기기 식별자',
+    nullable: true,
   })
-  deviceId: string;
+  deviceId: string | null;
 
   @ApiProperty({
     example: 0,

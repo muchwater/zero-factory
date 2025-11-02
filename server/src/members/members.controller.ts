@@ -16,6 +16,6 @@ export class MembersController {
   })
   @ApiResponse({ status: 201, description: '멤버가 생성되거나 조회됨.', type: MemberResponseDto })
   async findOrCreate(@Body() dto: CreateMemberDto): Promise<MemberResponseDto> {
-    return this.membersService.findOrCreate(dto.deviceId);
+    return this.membersService.findOrCreate(dto.nickname, dto.deviceId);
   }
 }
