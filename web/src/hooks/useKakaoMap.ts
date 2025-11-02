@@ -5,7 +5,9 @@ import type { MarkerData, KakaoMapOptions } from '@/types/kakao'
 
 export const useKakaoMap = (options: KakaoMapOptions = {}) => {
   const mapRef = useRef<HTMLDivElement>(null)
-  const mapInstance = useRef<any>(null)
+  const mapInstanceRef = useRef<any>(null)
+  const markersRef = useRef<any[]>([]) // 마커들을 추적하기 위한 ref
+  const [mapInstance, setMapInstance] = useState<any>(null) // state로 변경하여 리렌더링 트리거
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isScriptLoaded, setIsScriptLoaded] = useState(false)
@@ -36,8 +38,8 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
 
     // 새로운 스크립트 태그 생성
     const script = document.createElement('script')
-    const apiKey = process.env.NEXT_PUBLIC_KAKAO_MAP_API_KEY
-    
+    const apiKey = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY
+
     if (!apiKey) {
       setError('카카오맵 API 키가 설정되지 않았습니다.')
       setIsLoading(false)
@@ -80,8 +82,11 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
               level: options.level || 3
             }
             
-            mapInstance.current = new window.kakao.maps.Map(mapRef.current, mapOptions)
+            const map = new window.kakao.maps.Map(mapRef.current, mapOptions)
+            mapInstanceRef.current = map
+            setMapInstance(map)
             setIsLoading(false)
+            console.log('카카오맵 초기화 완료')
           }
         })
       } catch (err) {
@@ -183,28 +188,44 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
     `
   }
 
+  // 기존 마커 모두 제거
+  const clearMarkers = () => {
+    markersRef.current.forEach((overlay) => {
+      overlay.setMap(null)
+    })
+    markersRef.current = []
+  }
+
   // 마커 추가 함수
   const addMarkers = (markers: MarkerData[]) => {
-    if (!mapInstance.current || !window.kakao) {
-      console.warn('맵이 초기화되지 않았습니다.')
+    if (!mapInstanceRef.current || !window.kakao) {
+      console.warn('맵이 초기화되지 않았습니다.', { map: !!mapInstanceRef.current, kakao: !!window.kakao })
       return
     }
+
+    // 기존 마커 제거
+    clearMarkers()
+
+    console.log('마커 추가 시작:', markers.length, '개')
 
     markers.forEach((markerData) => {
       try {
         const markerStyle = getMarkerStyle(markerData)
         const plusIcon = createPlusIcon()
-        
+
         // 스타일을 CSS 문자열로 변환
         const styleString = Object.entries(markerStyle)
           .map(([key, value]) => `${key.replace(/([A-Z])/g, '-$1').toLowerCase()}: ${value}`)
           .join('; ')
 
+        // 고유 ID 생성
+        const markerId = `marker-${markerData.placeId || Math.random()}`
+
         // 커스텀 오버레이 생성
         const overlay = new window.kakao.maps.CustomOverlay({
           position: new window.kakao.maps.LatLng(markerData.lat, markerData.lng),
           content: `
-            <div style="${styleString}" class="marker-overlay" data-place-id="${markerData.placeId || ''}">
+            <div id="${markerId}" style="${styleString}; cursor: pointer;" class="marker-overlay" data-place-id="${markerData.placeId || ''}">
               ${plusIcon}
               ${markerData.icon}
             </div>
@@ -212,36 +233,47 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
           yAnchor: 1.2
         })
 
-        // 클릭 이벤트 추가
+        overlay.setMap(mapInstanceRef.current)
+        markersRef.current.push(overlay)
+
+        // DOM이 렌더링된 후 클릭 이벤트 추가
         if (markerData.onClick) {
-          window.kakao.maps.event.addListener(overlay, 'click', markerData.onClick)
+          const clickHandler = markerData.onClick
+          setTimeout(() => {
+            const element = document.getElementById(markerId)
+            if (element && clickHandler) {
+              element.addEventListener('click', clickHandler)
+            }
+          }, 100)
         }
 
-        overlay.setMap(mapInstance.current)
+        console.log('마커 생성 완료:', markerData.title, 'at', markerData.lat, markerData.lng)
       } catch (err) {
         console.error('마커 생성 오류:', err)
       }
     })
+
+    console.log('총', markersRef.current.length, '개 마커가 지도에 추가되었습니다.')
   }
 
   // 맵 중심 이동 함수
   const moveCenter = (lat: number, lng: number) => {
-    if (mapInstance.current && window.kakao) {
+    if (mapInstanceRef.current && window.kakao) {
       const moveLatLon = new window.kakao.maps.LatLng(lat, lng)
-      mapInstance.current.setCenter(moveLatLon)
+      mapInstanceRef.current.setCenter(moveLatLon)
     }
   }
 
   // 줌 레벨 변경 함수
   const setLevel = (level: number) => {
-    if (mapInstance.current) {
-      mapInstance.current.setLevel(level)
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.setLevel(level)
     }
   }
 
   return {
     mapRef,
-    mapInstance: mapInstance.current,
+    mapInstance, // state 반환
     isLoading,
     error,
     addMarkers,

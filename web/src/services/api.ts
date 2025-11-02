@@ -2,7 +2,7 @@
 
 import type { Place, PlaceNearby } from '@/types/api'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://43.201.190.116:3000'
 
 class ApiError extends Error {
   constructor(public status: number, message: string) {

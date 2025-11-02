@@ -124,10 +124,100 @@ npm run prisma:studio
 
 `.env` 파일에서 다음 변수들을 설정할 수 있습니다:
 
+### 데이터베이스 설정
 - `POSTGRES_USER`: PostgreSQL 사용자명
 - `POSTGRES_PASSWORD`: PostgreSQL 비밀번호
 - `POSTGRES_DB`: 데이터베이스 이름
 - `DATABASE_URL`: 데이터베이스 연결 URL
+
+### API Key 설정
+
+#### Kakao Map API Key
+
+1. [Kakao Developers](https://developers.kakao.com/)에 접속하여 로그인
+2. 내 애플리케이션 > 애플리케이션 추가하기
+3. 생성된 애플리케이션의 **앱 키 > JavaScript 키** 복사
+4. **플랫폼 설정** (매우 중요!)
+   - "플랫폼" 메뉴 클릭
+   - "Web 플랫폼 등록" 클릭
+   - 사이트 도메인 등록:
+     - 개발: `http://localhost:3001`
+     - 프로덕션: 실제 서버 주소 (예: `http://43.201.190.116:3001` 또는 도메인)
+5. `.env` 파일에 다음과 같이 설정:
+
+```bash
+NEXT_PUBLIC_KAKAO_MAP_KEY=your_kakao_map_key_here
+```
+
+6. Docker 재빌드 (환경 변수 변경 시 필수):
+
+```bash
+docker compose down
+docker compose up -d --build
+```
+
+**중요**:
+- Kakao Map API는 등록된 도메인에서만 작동합니다
+- 새로운 도메인/IP를 추가할 때마다 Kakao Developers에서 플랫폼 등록 필요
+- 환경 변수 변경 후 반드시 Docker 재빌드 필요 (Next.js는 빌드 시점에 환경 변수를 코드에 삽입)
+
+## 트러블슈팅
+
+### Kakao Map API 연결 실패
+
+**증상**: 지도가 로드되지 않거나 콘솔에 Kakao API 관련 에러 발생
+
+**해결 방법**:
+
+1. **플랫폼 등록 확인**
+   ```bash
+   # 서버 IP 확인
+   curl ifconfig.me
+   ```
+   - [Kakao Developers 콘솔](https://developers.kakao.com/)에서 해당 IP 또는 도메인이 등록되어 있는지 확인
+   - 형식: `http://YOUR_IP:3001` 또는 `http://localhost:3001`
+
+2. **환경 변수 확인**
+   ```bash
+   # .env 파일에 API 키가 있는지 확인
+   cat .env | grep KAKAO
+
+   # Docker 컨테이너에 환경 변수가 전달되었는지 확인
+   docker logs zero-factory-web-1 2>&1 | head -20
+   ```
+
+3. **빌드된 파일에 API 키 포함 확인**
+   ```bash
+   # 빌드된 HTML에 API 키가 포함되어 있는지 확인
+   curl -s http://localhost:3001 | grep -o "appkey=[^&\"]*"
+   ```
+   - API 키가 보이지 않으면 Docker 재빌드 필요
+
+4. **브라우저 콘솔 확인**
+   - F12 키를 눌러 개발자 도구 열기
+   - Console 탭에서 에러 메시지 확인
+   - 일반적인 에러:
+     - `Failed to load resource`: 네트워크 문제 또는 플랫폼 미등록
+     - `Kakao Map API error`: API 키 오류 또는 플랫폼 미등록
+
+5. **Docker 재빌드**
+   ```bash
+   docker compose down
+   docker compose up -d --build
+   ```
+
+### 데이터베이스 연결 실패
+
+```bash
+# 데이터베이스 컨테이너 상태 확인
+docker compose ps
+
+# 데이터베이스 로그 확인
+docker compose logs db
+
+# API 서버 로그 확인
+docker compose logs api
+```
 
 ## 라이선스
 

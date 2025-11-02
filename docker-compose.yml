@@ -17,12 +17,16 @@ services:
     build:
       context: ./web
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: "http://43.201.190.116:3000"
+        NEXT_PUBLIC_KAKAO_MAP_KEY: "${NEXT_PUBLIC_KAKAO_MAP_KEY}"
     ports:
       - "3001:3001"
     depends_on:
       - api
     environment:
-      NEXT_PUBLIC_API_URL: "http://api:3000"
+      NEXT_PUBLIC_API_URL: "http://43.201.190.116:3000"
+      NEXT_PUBLIC_KAKAO_MAP_KEY: "${NEXT_PUBLIC_KAKAO_MAP_KEY}"
       NODE_ENV: production
     networks:
       - app-network

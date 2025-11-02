@@ -32,6 +32,12 @@ export default function KakaoMap({
 
   // API 데이터를 기반으로 마커 생성
   useEffect(() => {
+    console.log('마커 생성 useEffect 실행:', {
+      mapInstance: !!mapInstance,
+      isLoading,
+      placesCount: places.length
+    })
+
     if (!mapInstance || isLoading || !places.length) return
 
     const placeMarkers: MarkerData[] = places.map((place) => {
@@ -69,10 +75,11 @@ export default function KakaoMap({
     // 약간의 지연을 두어 맵이 완전히 로드된 후 마커 추가
     const timer = setTimeout(() => {
       addMarkers(placeMarkers)
+      console.log('마커 추가 완료:', placeMarkers.length, '개')
     }, 100)
 
     return () => clearTimeout(timer)
-  }, [mapInstance, isLoading, places, addMarkers, onPlaceClick])
+  }, [mapInstance, isLoading, places, addMarkers, onPlaceClick, center])
 
   if (error) {
     return (
