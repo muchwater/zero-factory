@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PlaceNearbyDto } from './dto/place-nearby.dto';
+import { CreatePlaceDto } from './dto/create-place.dto';
 import { getDayName, getWeekOfMonth } from '../common/day';
 
 @Injectable()
@@ -145,5 +146,45 @@ export class PlacesService {
     }
 
     return results;
+  }
+
+  async createPlace(createPlaceDto: CreatePlaceDto) {
+    this.logger.log(`🏗️ Creating new place: ${createPlaceDto.name}`);
+    
+    // 먼저 location 없이 place 생성
+    const place = await this.prisma.place.create({
+      data: {
+        name: createPlaceDto.name,
+        description: createPlaceDto.description,
+        address: createPlaceDto.address,
+        category: createPlaceDto.category,
+        types: createPlaceDto.types,
+        contact: createPlaceDto.contact,
+      },
+    });
+
+    // location을 raw query로 업데이트 (PostGIS geography 타입)
+    const lng = createPlaceDto.location.lng;
+    const lat = createPlaceDto.location.lat;
+    
+    await this.prisma.$executeRaw`
+      UPDATE "Place" 
+      SET location = ST_GeomFromText(
+        ${`POINT(${lng} ${lat})`}, 
+        4326
+      )
+      WHERE id = ${place.id}
+    `;
+
+    this.logger.log(`✅ Successfully created place with ID: ${place.id}`);
+    
+    // 업데이트된 place를 location 정보와 함께 반환
+    return this.prisma.place.findUnique({
+      where: { id: place.id },
+      include: {
+        openingHours: true,
+        exceptions: true,
+      },
+    });
   }
 }

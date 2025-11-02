@@ -1,8 +1,9 @@
-import { Controller, Get, Param, Query, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Param, Query, Body, Logger } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { PlacesService } from './places.service';
 import { PlaceDto } from './dto/place.dto';
 import { PlaceNearbyDto } from './dto/place-nearby.dto';
+import { CreatePlaceDto } from './dto/create-place.dto';
 
 @ApiTags('places')
 @Controller('places')
@@ -54,6 +55,14 @@ export class PlacesController {
     
     this.logger.log(`✅ Found ${result.length} places`);
     return result;
+  }
+
+  @Post()
+  @ApiOperation({ summary: '새 장소 제보' })
+  @ApiResponse({ status: 201, type: PlaceDto })
+  async createPlace(@Body() createPlaceDto: CreatePlaceDto) {
+    this.logger.log(`📍 POST /places - Creating new place: ${createPlaceDto.name}`);
+    return this.placesService.createPlace(createPlaceDto);
   }
 
   @Get(':id')

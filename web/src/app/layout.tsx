@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import Script from 'next/script'
 import './globals.css'
 import EnvChecker from '@/components/EnvChecker'
 
@@ -18,6 +19,10 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className={inter.className}>
+        <Script
+          src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_API_KEY}&libraries=services&autoload=false`}
+          strategy="beforeInteractive"
+        />
         <EnvChecker>
           {children}
         </EnvChecker>

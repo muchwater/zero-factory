@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 interface PlaceFormProps {
   onSubmit: (data: any) => void
@@ -13,6 +13,7 @@ interface FormData {
   name: string
   address: string
   detailAddress: string
+  contact: string
   opinion: string
   photos: File[]
 }
@@ -24,9 +25,30 @@ export default function PlaceForm({ onSubmit, isSubmitting = false }: PlaceFormP
     name: '',
     address: '',
     detailAddress: '',
+    contact: '',
     opinion: '',
     photos: []
   })
+
+  const [addressSuggestions, setAddressSuggestions] = useState<any[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number } | null>(null)
+  const [isKakaoLoaded, setIsKakaoLoaded] = useState(false)
+
+  // Kakao Maps SDK 로드 확인
+  useEffect(() => {
+    const checkKakaoLoaded = () => {
+      if (window.kakao && window.kakao.maps) {
+        window.kakao.maps.load(() => {
+          setIsKakaoLoaded(true)
+          console.log('Kakao Maps SDK 로드 완료')
+        })
+      } else {
+        setTimeout(checkKakaoLoaded, 100)
+      }
+    }
+    checkKakaoLoaded()
+  }, [])
 
   const facilityTypes = [
     { id: 'reusable-container', label: '리유저블 컨테이너', icon: '♻️' },
@@ -65,6 +87,74 @@ export default function PlaceForm({ onSubmit, isSubmitting = false }: PlaceFormP
     }))
   }
 
+  // 카카오 주소 검색 (Kakao Maps SDK Geocoder 사용)
+  const searchAddress = async (query: string) => {
+    if (!query.trim()) {
+      setAddressSuggestions([])
+      setShowSuggestions(false)
+      return
+    }
+
+    // Kakao Maps SDK가 로드될 때까지 대기
+    if (!isKakaoLoaded) {
+      console.log('Kakao Maps SDK 로딩 중...')
+      return
+    }
+
+    try {
+      const geocoder = new window.kakao.maps.services.Geocoder()
+      
+      geocoder.addressSearch(query, (result: any, status: any) => {
+        if (status === window.kakao.maps.services.Status.OK) {
+          // 결과를 addressSuggestions 형식으로 변환
+          const suggestions = result.map((item: any) => ({
+            address_name: item.address_name,
+            road_address_name: item.road_address?.address_name || '',
+            x: item.x,
+            y: item.y
+          }))
+          
+          console.log('주소 검색 결과:', suggestions.length, '건')
+          setAddressSuggestions(suggestions)
+          setShowSuggestions(true)
+        } else {
+          console.log('주소 검색 결과 없음')
+          setAddressSuggestions([])
+          setShowSuggestions(false)
+        }
+      })
+    } catch (error) {
+      console.error('주소 검색 오류:', error)
+      setAddressSuggestions([])
+      setShowSuggestions(false)
+    }
+  }
+
+  // 주소 선택 시 좌표 설정
+  const selectAddress = (suggestion: any) => {
+    setFormData(prev => ({
+      ...prev,
+      address: suggestion.address_name
+    }))
+    setCoordinates({
+      lat: parseFloat(suggestion.y),
+      lng: parseFloat(suggestion.x)
+    })
+    setShowSuggestions(false)
+  }
+
+  // 주소 입력 핸들러 (디바운싱 적용)
+  const handleAddressInput = (value: string) => {
+    setFormData(prev => ({ ...prev, address: value }))
+    
+    // 디바운싱: 500ms 후에 검색 실행
+    const timeoutId = setTimeout(() => {
+      searchAddress(value)
+    }, 500)
+    
+    return () => clearTimeout(timeoutId)
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.facilityType) {
@@ -75,7 +165,16 @@ export default function PlaceForm({ onSubmit, isSubmitting = false }: PlaceFormP
       alert('시설명을 입력해주세요.')
       return
     }
-    onSubmit(formData)
+    if (!coordinates) {
+      alert('주소를 선택해주세요.')
+      return
+    }
+    
+    // 좌표 정보를 포함하여 제출
+    onSubmit({
+      ...formData,
+      coordinates
+    })
   }
 
   return (
@@ -185,21 +284,43 @@ export default function PlaceForm({ onSubmit, isSubmitting = false }: PlaceFormP
       <div className="space-y-1.5">
         <p className="text-sm font-medium text-black">시설 위치</p>
         
-        <div className="flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded-md">
-          <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          <input
-            type="text"
-            value={formData.address}
-            onChange={(e) => handleInputChange('address', e.target.value)}
-            className="flex-1 text-sm placeholder-gray-500 focus:outline-none"
-            placeholder="지번, 도로명, 건물명으로 검색"
-          />
-          <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+        <div className="relative">
+          <div className="flex items-center gap-2 px-3 py-1.5 border border-gray-300 rounded-md">
+            <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <input
+              type="text"
+              value={formData.address}
+              onChange={(e) => handleAddressInput(e.target.value)}
+              onFocus={() => setShowSuggestions(addressSuggestions.length > 0)}
+              className="flex-1 text-sm placeholder-gray-500 focus:outline-none"
+              placeholder="지번, 도로명, 건물명으로 검색"
+            />
+            <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          
+          {/* 주소 자동완성 드롭다운 */}
+          {showSuggestions && addressSuggestions.length > 0 && (
+            <div className="absolute top-full left-0 right-0 z-50 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto mt-1">
+              {addressSuggestions.map((suggestion, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => selectAddress(suggestion)}
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-gray-100 border-b border-gray-100 last:border-b-0"
+                >
+                  <div className="font-medium">{suggestion.address_name}</div>
+                  {suggestion.road_address_name && (
+                    <div className="text-xs text-gray-500">{suggestion.road_address_name}</div>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <input
@@ -220,6 +341,18 @@ export default function PlaceForm({ onSubmit, isSubmitting = false }: PlaceFormP
           onChange={(e) => handleInputChange('opinion', e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
           placeholder="이 장소에 대한 의견을 남겨주세요. (선택)"
+        />
+      </div>
+
+      {/* 연락처 */}
+      <div className="space-y-1">
+        <p className="text-sm font-medium text-black">연락처 (선택)</p>
+        <input
+          type="tel"
+          value={formData.contact}
+          onChange={(e) => handleInputChange('contact', e.target.value)}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="전화번호를 입력해주세요"
         />
       </div>
 

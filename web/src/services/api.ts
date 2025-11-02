@@ -69,6 +69,35 @@ export const placesApi = {
   getPlaceById: (id: number): Promise<Place> => {
     return fetchApi<Place>(`/places/${id}`)
   },
+
+  // 새 장소 제보
+  createPlace: (params: {
+    name: string
+    address: string
+    detailAddress?: string
+    category: 'STORE' | 'FACILITY'
+    types: string[]
+    description?: string
+    contact?: string
+    coordinates: {
+      lat: number
+      lng: number
+    }
+  }): Promise<Place> => {
+    return fetchApi<Place>('/places', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: params.name,
+        address: params.address,
+        detailAddress: params.detailAddress,
+        category: params.category,
+        types: params.types,
+        description: params.description,
+        contact: params.contact,
+        location: params.coordinates,
+      }),
+    })
+  },
 }
 
 // 헬스체크 API

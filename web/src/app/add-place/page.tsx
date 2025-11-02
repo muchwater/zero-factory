@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import PlaceForm from '@/components/PlaceForm'
+import { placesApi } from '@/services/api'
 
 export default function AddPlacePage() {
   const router = useRouter()
@@ -11,13 +12,41 @@ export default function AddPlacePage() {
   const handleSubmit = async (formData: any) => {
     setIsSubmitting(true)
     try {
-      // TODO: API 호출로 장소 데이터 전송
-      console.log('장소 제보 데이터:', formData)
+      // 시설 종류 레이블 매핑
+      const facilityTypeLabels: { [key: string]: string } = {
+        'reusable-container': '리유저블 컨테이너',
+        'rvm': 'RVM',
+        'refill-shop': '리필샵',
+        'tumbler-cleaner': '텀블러 세척기'
+      }
+      
+      const facilityTypeLabel = facilityTypeLabels[formData.facilityType] || formData.facilityType
+      
+      // description 생성 (시설 종류 + 의견)
+      const description = formData.opinion 
+        ? `[${facilityTypeLabel}] ${formData.opinion}`
+        : `[${facilityTypeLabel}]`
+      
+      // API 호출로 장소 데이터 전송
+      const newPlace = await placesApi.createPlace({
+        name: formData.name,
+        address: formData.address,
+        detailAddress: formData.detailAddress,
+        category: 'FACILITY', // 시설 제보이므로 FACILITY로 고정
+        types: formData.services.map((s: string) => s.toUpperCase()), // ['RENT', 'RETURN', 'BONUS']
+        description: description,
+        contact: formData.contact,
+        coordinates: formData.coordinates
+      })
+      
+      console.log('장소 제보 성공:', newPlace)
+      alert('장소가 성공적으로 제보되었습니다!')
       
       // 성공 시 메인 페이지로 이동
       router.push('/')
     } catch (error) {
       console.error('장소 제보 실패:', error)
+      alert('장소 제보에 실패했습니다. 다시 시도해주세요.')
     } finally {
       setIsSubmitting(false)
     }
