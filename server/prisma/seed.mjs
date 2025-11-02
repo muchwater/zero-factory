@@ -2,13 +2,6 @@ import { PrismaClient, PlaceCategory, PlaceType } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-function getRandomOffset() {
-  // 위도/경도 1도 ≈ 111,000m
-  // 100m ≈ 0.0009도
-  const maxOffset = 0.0009;
-  return (Math.random() - 0.5) * 2 * maxOffset;
-}
-
 async function createPlaceWithLocation(data, lng, lat) {
   const place = await prisma.place.create({ data });
   await prisma.$executeRawUnsafe(`
