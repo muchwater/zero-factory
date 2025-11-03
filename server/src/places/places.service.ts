@@ -10,11 +10,11 @@ export class PlacesService {
   
   constructor(private prisma: PrismaService) {}
 
-  async getAllPlaces(status?: string) {
+  async getAllPlaces(state?: string) {
     this.logger.log('📚 Getting all places...');
-    
+
     const places = await this.prisma.place.findMany({
-      where: { status },
+      where: state ? { state: state as any } : undefined,
       include: {
         openingHours: true,
         exceptions: true,
@@ -89,7 +89,7 @@ export class PlacesService {
       ? `AND types && ARRAY[${filterTypes.map((t) => `'${t.toUpperCase()}'`).join(',')}]::"PlaceType"[]`
       : ''
   }
-  AND status = 'ACTIVE'
+  AND state = 'ACTIVE'
   ORDER BY distance ASC
   LIMIT ${limit}
   OFFSET ${offset};
@@ -191,13 +191,13 @@ export class PlacesService {
     });
   }
 
-  async updatePlaceStatus(id: number, status: 'ACTIVE' | 'INACTIVE') {
-    this.logger.log(`🔄 Updating place ID ${id} status to ${status}`);
+  async updatePlaceStatus(id: number, state: 'ACTIVE' | 'INACTIVE') {
+    this.logger.log(`🔄 Updating place ID ${id} state to ${state}`);
     await this.prisma.place.update({
       where: { id },
-      data: { status },
+      data: { state: state as any },
     });
-    this.logger.log(`✅ Successfully updated place ID ${id} status to ${status}`);
+    this.logger.log(`✅ Successfully updated place ID ${id} state to ${state}`);
     return this.prisma.place.findUnique({
       where: { id },
       include: {
