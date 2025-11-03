@@ -9,7 +9,6 @@ interface PlaceFormProps {
 
 interface FormData {
   facilityType: string
-  services: string[]
   name: string
   address: string
   detailAddress: string
@@ -21,7 +20,6 @@ interface FormData {
 export default function PlaceForm({ onSubmit, isSubmitting = false }: PlaceFormProps) {
   const [formData, setFormData] = useState<FormData>({
     facilityType: '',
-    services: [],
     name: '',
     address: '',
     detailAddress: '',
@@ -51,17 +49,13 @@ export default function PlaceForm({ onSubmit, isSubmitting = false }: PlaceFormP
   }, [])
 
   const facilityTypes = [
-    { id: 'reusable-container', label: '리유저블 컨테이너', icon: '♻️' },
-    { id: 'rvm', label: 'RVM', icon: '🗑️' },
-    { id: 'refill-shop', label: '리필샵', icon: '🏪' },
-    { id: 'tumbler-cleaner', label: '텀블러 세척기', icon: '🧼' }
+    { id: 'reusable-container', label: '리유저블 컨테이너', icon: '♻️', type: 'RENT' },
+    { id: 'rvm', label: 'RVM', icon: '🗑️', type: 'RETURN' },
+    { id: 'incentive', label: '인센티브', icon: '🏪', type: 'BONUS' },
+    { id: 'tumbler-cleaner', label: '텀블러 세척기', icon: '🧼', type: 'CLEAN' }
   ]
 
-  const serviceOptions = [
-    { id: 'rent', label: '대여' },
-    { id: 'return', label: '반납' },
-    { id: 'bonus', label: '보너스 지급' }
-  ]
+  // 시설 종류에 따라 자동으로 type이 설정되므로 serviceOptions는 더 이상 필요 없음
 
   const handleInputChange = (field: keyof FormData, value: any) => {
     setFormData(prev => ({
@@ -70,14 +64,7 @@ export default function PlaceForm({ onSubmit, isSubmitting = false }: PlaceFormP
     }))
   }
 
-  const handleServiceToggle = (serviceId: string) => {
-    setFormData(prev => ({
-      ...prev,
-      services: prev.services.includes(serviceId)
-        ? prev.services.filter(s => s !== serviceId)
-        : [...prev.services, serviceId]
-    }))
-  }
+  // handleServiceToggle 제거 - 자동으로 type 설정됨
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
@@ -244,9 +231,9 @@ export default function PlaceForm({ onSubmit, isSubmitting = false }: PlaceFormP
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => handleInputChange('facilityType', 'refill-shop')}
+            onClick={() => handleInputChange('facilityType', 'incentive')}
             className={`flex-1 flex items-center gap-2 p-3 rounded-md border transition-colors ${
-              formData.facilityType === 'refill-shop'
+              formData.facilityType === 'incentive'
                 ? 'border-black bg-gray-50'
                 : 'border-gray-300 hover:border-gray-400'
             }`}
@@ -254,7 +241,7 @@ export default function PlaceForm({ onSubmit, isSubmitting = false }: PlaceFormP
             <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
               <span className="text-lg">🏪</span>
             </div>
-            <span className="text-sm font-medium text-black">리필샵</span>
+            <span className="text-sm font-medium text-black">인센티브</span>
           </button>
           
           <button
@@ -273,23 +260,7 @@ export default function PlaceForm({ onSubmit, isSubmitting = false }: PlaceFormP
           </button>
         </div>
 
-        {/* 서비스 옵션 */}
-        <div className="flex gap-8 px-3 py-2">
-          {serviceOptions.map((service) => (
-            <div key={service.id} className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id={service.id}
-                checked={formData.services.includes(service.id)}
-                onChange={() => handleServiceToggle(service.id)}
-                className="w-3.5 h-3.5 border border-black rounded-sm"
-              />
-              <label htmlFor={service.id} className="text-sm font-medium text-black">
-                {service.label}
-              </label>
-            </div>
-          ))}
-        </div>
+        {/* 서비스 옵션 제거 - 시설 종류에 따라 자동 설정됨 */}
       </div>
 
       {/* 시설명 */}

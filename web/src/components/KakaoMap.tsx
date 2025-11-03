@@ -32,14 +32,11 @@ export default function KakaoMap({
 
   // API 데이터를 기반으로 마커 생성
   useEffect(() => {
-    if (!mapInstance || isLoading || !places.length) return
+    if (!mapInstance || isLoading) return
 
     const placeMarkers: MarkerData[] = places.map((place) => {
       // 장소 타입에 따른 아이콘과 스타일 결정
       const getMarkerInfo = (types: string[]) => {
-        if (types.includes('RENT')) {
-          return { icon: '☕', style: 'blue-rect' as const, type: 'rent' as const }
-        }
         if (types.includes('RETURN')) {
           return { icon: '♻️', style: 'green-circle' as const, type: 'return' as const }
         }
@@ -49,7 +46,8 @@ export default function KakaoMap({
         if (types.includes('CLEAN')) {
           return { icon: '🧼', style: 'green-circle' as const, type: 'clean' as const }
         }
-        return { icon: '📍', style: 'default' as const, type: 'default' as const }
+        // RENT이거나 types가 비어있으면 기본적으로 커피컵 아이콘 사용
+        return { icon: '☕', style: 'blue-rect' as const, type: 'rent' as const }
       }
 
       const markerInfo = getMarkerInfo(place.types)

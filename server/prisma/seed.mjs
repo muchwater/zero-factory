@@ -63,7 +63,7 @@ async function main() {
         description: cafe.description,
         address: cafe.address,
         category: PlaceCategory.STORE,
-        types: [PlaceType.RENT, PlaceType.BONUS], // 대여 + 포인트 적립
+        types: [PlaceType.RENT,], // 대여 + 포인트 적립
         contact: cafe.contact,
         openingHours: {
           create: Array.from({ length: 7 }).map((_, day) => ({

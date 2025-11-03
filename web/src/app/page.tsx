@@ -78,8 +78,21 @@ export default function Home() {
     },
   ]
 
+  // 카테고리 ID와 PlaceType 매핑
+  const categoryToType: Record<string, string> = {
+    'coffee': 'RENT',
+    'recycle': 'RETURN',
+    'store': 'BONUS',
+    'wash': 'CLEAN',
+  }
+
+  // 선택된 카테고리에 따라 장소 필터링
+  const filteredPlaces = selectedCategory
+    ? places.filter(place => place.types.includes(categoryToType[selectedCategory]))
+    : places
+
   // API에서 가져온 장소 데이터를 PlaceCard 형식으로 변환
-  const displayPlaces = places.map((place) => ({
+  const displayPlaces = filteredPlaces.map((place) => ({
     id: place.id,
     name: place.name,
     distance: '-', // 전체 조회이므로 거리 정보 없음
@@ -100,7 +113,7 @@ export default function Home() {
   }
 
   const handlePlaceClick = (placeId: number) => {
-    const place = places.find(p => p.id === placeId)
+    const place = filteredPlaces.find(p => p.id === placeId)
     if (place) {
       setSelectedPlace(place)
       console.log('장소 클릭:', place)
@@ -147,7 +160,7 @@ export default function Home() {
                 className="w-full h-full"
                 center={currentLocation}
                 level={3}
-                places={places}
+                places={filteredPlaces}
                 onPlaceClick={handleMapPlaceClick}
               />
               <MapOverlay

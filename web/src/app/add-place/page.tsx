@@ -12,15 +12,17 @@ export default function AddPlacePage() {
   const handleSubmit = async (formData: any) => {
     setIsSubmitting(true)
     try {
-      // 시설 종류 레이블 매핑
-      const facilityTypeLabels: { [key: string]: string } = {
-        'reusable-container': '리유저블 컨테이너',
-        'rvm': 'RVM',
-        'refill-shop': '리필샵',
-        'tumbler-cleaner': '텀블러 세척기'
+      // 시설 종류 레이블 및 type 매핑
+      const facilityTypeMap: { [key: string]: { label: string; type: string } } = {
+        'reusable-container': { label: '리유저블 컨테이너', type: 'RENT' },
+        'rvm': { label: 'RVM', type: 'RETURN' },
+        'incentive': { label: '인센티브', type: 'BONUS' },
+        'tumbler-cleaner': { label: '텀블러 세척기', type: 'CLEAN' }
       }
       
-      const facilityTypeLabel = facilityTypeLabels[formData.facilityType] || formData.facilityType
+      const facilityInfo = facilityTypeMap[formData.facilityType]
+      const facilityTypeLabel = facilityInfo?.label || formData.facilityType
+      const facilityType = facilityInfo?.type || 'RENT' // 기본값
       
       // description 생성 (시설 종류 + 의견)
       const description = formData.opinion 
@@ -33,7 +35,7 @@ export default function AddPlacePage() {
         address: formData.address,
         detailAddress: formData.detailAddress,
         category: 'FACILITY', // 시설 제보이므로 FACILITY로 고정
-        types: formData.services.map((s: string) => s.toUpperCase()), // ['RENT', 'RETURN', 'BONUS']
+        types: [facilityType], // 시설 종류에 따라 자동으로 type 설정
         description: description,
         contact: formData.contact,
         coordinates: formData.coordinates

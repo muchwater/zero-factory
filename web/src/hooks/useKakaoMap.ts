@@ -6,6 +6,7 @@ import type { MarkerData, KakaoMapOptions } from '@/types/kakao'
 export const useKakaoMap = (options: KakaoMapOptions = {}) => {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstance = useRef<any>(null)
+  const markersRef = useRef<any[]>([])  // 생성된 마커들을 추적
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isScriptLoaded, setIsScriptLoaded] = useState(false)
@@ -190,6 +191,12 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
       return
     }
 
+    // 기존 마커들을 모두 제거
+    markersRef.current.forEach((marker) => {
+      marker.setMap(null)
+    })
+    markersRef.current = []
+
     markers.forEach((markerData) => {
       try {
         const markerStyle = getMarkerStyle(markerData)
@@ -218,6 +225,9 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
         }
 
         overlay.setMap(mapInstance.current)
+        
+        // 생성된 마커를 ref에 저장
+        markersRef.current.push(overlay)
       } catch (err) {
         console.error('마커 생성 오류:', err)
       }
