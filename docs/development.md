@@ -83,15 +83,15 @@ npm install
 npm run dev
 ```
 
-웹 서버는 http://localhost:3000 에서 실행됩니다.
+웹 서버는 http://localhost:3001 에서 실행됩니다.
 
-> 주의: 로컬 개발 시 웹 서버는 3000번 포트를 사용하지만, Docker 환경에서는 3001번 포트를 사용합니다.
+> 참고: 로컬 개발과 Docker 환경 모두 3001번 포트를 사용합니다. Backend는 3000번 포트를 사용하므로 포트 충돌 없이 동시 실행이 가능합니다.
 
 ### 주요 명령어
 
 | 명령어 | 설명 |
 |--------|------|
-| `npm run dev` | 개발 서버 실행 |
+| `npm run dev` | 개발 서버 실행 (http://localhost:3001) |
 | `npm run build` | 프로덕션 빌드 |
 | `npm run start` | 프로덕션 서버 실행 |
 | `npm run lint` | 린팅 |
