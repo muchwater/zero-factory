@@ -5,9 +5,9 @@ import type { MarkerData, KakaoMapOptions } from '@/types/kakao'
 
 export const useKakaoMap = (options: KakaoMapOptions = {}) => {
   const mapRef = useRef<HTMLDivElement>(null)
-  const mapInstance = useRef<any>(null)
-  const markersRef = useRef<any[]>([])  // 생성된 마커들을 추적
-
+  const mapInstanceRef = useRef<any>(null)
+  const markersRef = useRef<any[]>([]) // 마커들을 추적하기 위한 ref
+  const [mapInstance, setMapInstance] = useState<any>(null) // state로 변경하여 리렌더링 트리거
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isScriptLoaded, setIsScriptLoaded] = useState(false)
@@ -203,18 +203,10 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
       return
     }
 
-<<<<<<< HEAD
-    // 기존 마커들을 모두 제거
-    markersRef.current.forEach((marker) => {
-      marker.setMap(null)
-    })
-    markersRef.current = []
-=======
     // 기존 마커 제거
     clearMarkers()
 
     console.log('마커 추가 시작:', markers.length, '개')
->>>>>>> 7d0e38668b1fa4a902300211e72bb2ede747cec0
 
     markers.forEach((markerData) => {
       try {
@@ -255,14 +247,7 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
           }, 100)
         }
 
-<<<<<<< HEAD
-        overlay.setMap(mapInstance.current)
-        
-        // 생성된 마커를 ref에 저장
-        markersRef.current.push(overlay)
-=======
         console.log('마커 생성 완료:', markerData.title, 'at', markerData.lat, markerData.lng)
->>>>>>> 7d0e38668b1fa4a902300211e72bb2ede747cec0
       } catch (err) {
         console.error('마커 생성 오류:', err)
       }
