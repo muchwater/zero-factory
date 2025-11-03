@@ -56,19 +56,47 @@ docker compose up -d --build
 
 각 서비스를 개별적으로 실행할 수도 있습니다:
 
-#### Backend
+#### Backend (Server)
 ```bash
 cd server
+# .env 파일 복사 (최초 1회)
+cp ../.env.example .env
+
+# pnpm 설치 (미설치시)
+npm i -g pnpm
+
+# 의존성 설치 및 실행
+pnpm install
+pnpm db:setup  # DB 초기 세팅
+pnpm dev
+```
+
+**서버 주요 명령어:**
+- `pnpm db:setup` - DB 실행 + 초기 마이그레이션 + Prisma Client 생성
+- `pnpm prisma:migrate --name <name>` - 마이그레이션 생성 및 실행
+- `pnpm prisma:generate` - Prisma Client 재생성
+- `pnpm prisma:studio` - Prisma Studio 실행
+
+**필수 요구사항:**
+- Node.js 22.19.0
+- pnpm
+
+#### Frontend (Web)
+```bash
+cd web
+# .env.local 파일 복사 (최초 1회)
+cp ../.env.example .env.local
+
+# 의존성 설치 및 실행
 npm install
 npm run dev
 ```
 
-#### Frontend
-```bash
-cd web
-npm install
-npm run dev
-```
+**웹 주요 명령어:**
+- `npm run dev` - 개발 서버 실행 (http://localhost:3000)
+- `npm run build` - 프로덕션 빌드
+- `npm run start` - 프로덕션 서버 실행
+- `npm run lint` - 린팅
 
 ## Docker 명령어
 
