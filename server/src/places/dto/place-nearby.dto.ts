@@ -9,6 +9,9 @@ export class PlaceNearbyDto {
   @ApiProperty({ description: '장소 이름', example: '제로웨이스트 카페' })
   name: string;
 
+  @ApiProperty({ description: '브랜드명', example: '스타벅스', required: false })
+  brand?: string | null;
+
   @ApiProperty({ description: '설명', example: '텀블러 대여/반납 가능', required: false })
   description?: string | null;
 
