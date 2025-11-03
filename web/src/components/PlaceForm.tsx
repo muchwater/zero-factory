@@ -271,7 +271,7 @@ export default function PlaceForm({ onSubmit, isSubmitting = false }: PlaceFormP
           value={formData.name}
           onChange={(e) => handleInputChange('name', e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="|"
+          placeholder="시설명을 입력해주세요"
         />
       </div>
 

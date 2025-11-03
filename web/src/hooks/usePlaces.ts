@@ -21,11 +21,14 @@ export function usePlaces(options: UsePlacesOptions = {}) {
   const fetchAllPlaces = useCallback(async () => {
     setLoading(true)
     setError(null)
-    
+
     try {
+      console.log('API 호출 시작: fetchAllPlaces')
       const data = await placesApi.getAllPlaces()
+      console.log('API 응답 받음:', data.length, '개 장소')
       setPlaces(data)
     } catch (err) {
+      console.error('API 호출 실패:', err)
       setError(err instanceof Error ? err.message : '장소 정보를 불러오는데 실패했습니다.')
     } finally {
       setLoading(false)

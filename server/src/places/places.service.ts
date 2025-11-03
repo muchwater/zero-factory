@@ -10,10 +10,11 @@ export class PlacesService {
   
   constructor(private prisma: PrismaService) {}
 
-  async getAllPlaces() {
+  async getAllPlaces(state?: string) {
     this.logger.log('📚 Getting all places...');
-    
+
     const places = await this.prisma.place.findMany({
+      where: state ? { state: state as any } : undefined,
       include: {
         openingHours: true,
         exceptions: true,
@@ -63,6 +64,7 @@ export class PlacesService {
   SELECT 
     id, 
     name, 
+    brand,
     description, 
     address, 
     category, 
@@ -87,6 +89,7 @@ export class PlacesService {
       ? `AND types && ARRAY[${filterTypes.map((t) => `'${t.toUpperCase()}'`).join(',')}]::"PlaceType"[]`
       : ''
   }
+  AND state = 'ACTIVE'
   ORDER BY distance ASC
   LIMIT ${limit}
   OFFSET ${offset};
@@ -181,6 +184,22 @@ export class PlacesService {
     // 업데이트된 place를 location 정보와 함께 반환
     return this.prisma.place.findUnique({
       where: { id: place.id },
+      include: {
+        openingHours: true,
+        exceptions: true,
+      },
+    });
+  }
+
+  async updatePlaceStatus(id: number, state: 'ACTIVE' | 'INACTIVE') {
+    this.logger.log(`🔄 Updating place ID ${id} state to ${state}`);
+    await this.prisma.place.update({
+      where: { id },
+      data: { state: state as any },
+    });
+    this.logger.log(`✅ Successfully updated place ID ${id} state to ${state}`);
+    return this.prisma.place.findUnique({
+      where: { id },
       include: {
         openingHours: true,
         exceptions: true,

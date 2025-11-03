@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Query, Body, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Param, Query, Body, Logger, Put } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { PlacesService } from './places.service';
 import { PlaceDto } from './dto/place.dto';
@@ -14,9 +14,10 @@ export class PlacesController {
 
   @Get()
   @ApiOperation({ summary: '장소 전체 조회' })
+  @ApiQuery({ name: 'status', type: String, required: false, example: 'ACTIVE', description: '장소 상태 필터링 (ACTIVE, INACTIVE)' })
   @ApiResponse({ status: 200, type: [PlaceDto] })
-  async getAllPlaces() {
-    return this.placesService.getAllPlaces();
+  async getAllPlaces(@Query('status') status?: string) {
+    return this.placesService.getAllPlaces(status);
   }
 
   @Get('nearby')
@@ -70,5 +71,12 @@ export class PlacesController {
   @ApiResponse({ status: 200, type: PlaceDto })
   async getPlaceById(@Param('id') id: string) {
     return this.placesService.getPlaceById(Number(id));
+  }
+
+  @Put('status/:id')
+  @ApiOperation({ summary: '특정 장소 상태 업데이트' })
+  @ApiResponse({ status: 200, type: PlaceDto })
+  async updatePlaceStatus(@Param('id') id: string, @Body('status') status: 'ACTIVE' | 'INACTIVE') {
+    return this.placesService.updatePlaceStatus(Number(id), status);
   }
 }

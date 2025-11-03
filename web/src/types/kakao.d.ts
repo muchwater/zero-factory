@@ -5,11 +5,21 @@ declare global {
       maps: {
         load: (callback: () => void) => void
         LatLng: new (lat: number, lng: number) => any
+        LatLngBounds: new () => any
         Map: new (container: HTMLElement, options: any) => any
         Marker: new (options: any) => any
         CustomOverlay: new (options: any) => any
         event: {
           addListener: (target: any, type: string, handler: (...args: any[]) => void) => void
+        }
+        services: {
+          Places: new () => any
+          Geocoder: new () => any
+          Status: {
+            OK: string
+            ZERO_RESULT: string
+            ERROR: string
+          }
         }
       }
     }

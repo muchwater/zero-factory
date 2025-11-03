@@ -18,13 +18,13 @@ export default function EnvChecker({ children }: EnvCheckerProps) {
   })
 
   useEffect(() => {
-    const apiKey = process.env.NEXT_PUBLIC_KAKAO_MAP_API_KEY
-    
+    const apiKey = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY
+
     if (!apiKey) {
       setEnvStatus({
         hasApiKey: false,
         apiKeyValue: null,
-        error: 'NEXT_PUBLIC_KAKAO_MAP_API_KEY 환경변수가 설정되지 않았습니다.'
+        error: 'NEXT_PUBLIC_KAKAO_MAP_KEY 환경변수가 설정되지 않았습니다.'
       })
       return
     }
@@ -63,7 +63,7 @@ export default function EnvChecker({ children }: EnvCheckerProps) {
               <h3 className="font-medium text-gray-700 mb-2">해결 방법:</h3>
               <ol className="text-sm text-gray-600 space-y-1">
                 <li>1. 프로젝트 루트의 .env.local 파일 확인</li>
-                <li>2. NEXT_PUBLIC_KAKAO_MAP_API_KEY=실제_API_키 설정</li>
+                <li>2. NEXT_PUBLIC_KAKAO_MAP_KEY=실제_API_키 설정</li>
                 <li>3. 개발 서버 재시작 (npm run dev)</li>
                 <li>4. 카카오 개발자 사이트에서 도메인 등록 확인</li>
               </ol>
