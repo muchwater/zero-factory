@@ -79,7 +79,7 @@ export default function Home() {
   ]
 
   // 카테고리 ID와 PlaceType 매핑
-  const categoryToType: Record<string, string> = {
+  const categoryToType: Record<string, 'RENT' | 'RETURN' | 'BONUS' | 'CLEAN'> = {
     'coffee': 'RENT',
     'recycle': 'RETURN',
     'store': 'BONUS',
@@ -88,7 +88,7 @@ export default function Home() {
 
   // 선택된 카테고리에 따라 장소 필터링
   const filteredPlaces = selectedCategory
-    ? places.filter(place => place.types.includes(categoryToType[selectedCategory]))
+    ? places.filter(place => place.types.includes(categoryToType[selectedCategory] as any))
     : places
 
   // API에서 가져온 장소 데이터를 PlaceCard 형식으로 변환
