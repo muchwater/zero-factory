@@ -39,7 +39,7 @@ jobs:
             docker compose ps
 
             echo "✅ Checking API health endpoint..."
-            curl -f http://localhost:3000/api/health || echo "⚠️  API health check failed"
+            curl -f http://localhost:3000/health || echo "⚠️  API health check failed"
 
             echo "🎉 Deployment completed!"
 
