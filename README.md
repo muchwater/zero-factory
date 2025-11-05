@@ -89,6 +89,8 @@ zero-factory/
 
 ### 🔧 운영 및 문제 해결
 
+- **[배포 설정 가이드](./docs/deployment.md)** - GitHub Actions 자동 배포 설정
+- **[HTTPS 설정 가이드](./docs/HTTPS_SETUP.md)** - Let's Encrypt SSL 인증서 설정
 - **[트러블슈팅](./docs/troubleshooting.md)** - 자주 발생하는 문제 해결 방법
 
 ## 환경 변수
