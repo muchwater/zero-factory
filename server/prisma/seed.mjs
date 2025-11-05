@@ -72,6 +72,7 @@ async function main() {
             openTime: day === 0 ? null : '09:00',
             closeTime: day === 0 ? null : '21:00', // 카페는 21시까지
           })),
+          state: "ACTIVE",
         },
       },
       cafe.lng,
