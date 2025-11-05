@@ -8,7 +8,15 @@ export async function createApp(): Promise<INestApplication> {
 
   // CORS 활성화
   app.enableCors({
-    origin: ['http://localhost:5000', 'http://localhost:3001', 'http://43.201.190.116:3001'],
+    origin: [
+      'http://localhost:5000',
+      'http://localhost:3001',
+      'http://43.201.190.116:3001',
+      'https://zeromap.store',
+      'https://www.zeromap.store',
+      'http://zeromap.store',
+      'http://www.zeromap.store'
+    ],
     credentials: true,
   });
 
