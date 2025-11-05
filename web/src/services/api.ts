@@ -41,7 +41,7 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
 export const placesApi = {
   // 전체 장소 조회
   getAllPlaces: (): Promise<Place[]> => {
-    return fetchApi<Place[]>('/places')
+    return fetchApi<Place[]>('/places?state=ACTIVE')
   },
 
   // 근처 장소 검색

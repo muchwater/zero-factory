@@ -14,10 +14,10 @@ export class PlacesController {
 
   @Get()
   @ApiOperation({ summary: '장소 전체 조회' })
-  @ApiQuery({ name: 'status', type: String, required: false, example: 'ACTIVE', description: '장소 상태 필터링 (ACTIVE, INACTIVE)' })
+  @ApiQuery({ name: 'state', type: String, required: false, example: 'ACTIVE', description: '장소 상태 필터링 (ACTIVE, INACTIVE)' })
   @ApiResponse({ status: 200, type: [PlaceDto] })
-  async getAllPlaces(@Query('status') status?: string) {
-    return this.placesService.getAllPlaces(status);
+  async getAllPlaces(@Query('state') state?: string) {
+    return this.placesService.getAllPlaces(state);
   }
 
   @Get('nearby')
