@@ -15,6 +15,7 @@
     "db:reset": "docker compose down -v && docker compose up -d db && pnpm prisma:reset",
     "db:seed": "node prisma/seed.mjs",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:reset": "prisma migrate reset",
     "prisma:migrate:init": "prisma migrate dev --name init",
     "prisma:generate": "prisma generate",

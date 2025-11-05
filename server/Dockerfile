@@ -24,5 +24,5 @@ RUN pnpm run build
 # Expose the application port
 EXPOSE 3000
 
-# Command to run the application
-CMD ["node", "dist/src/main.js"]
+# Command to run migrations and start the application
+CMD ["sh", "-c", "pnpm prisma:migrate:deploy && node dist/src/main.js"]

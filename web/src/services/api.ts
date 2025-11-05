@@ -116,5 +116,37 @@ export const healthApi = {
   },
 }
 
+// 어드민 API
+export const adminApi = {
+  // Pending 장소 목록 조회
+  getPendingPlaces: (adminCode: string): Promise<Place[]> => {
+    return fetchApi<Place[]>('/admin/places/pending', {
+      headers: {
+        'x-admin-code': adminCode,
+      },
+    })
+  },
+
+  // 장소 승인 (ACTIVE로 변경)
+  activatePlace: (id: number, adminCode: string): Promise<Place> => {
+    return fetchApi<Place>(`/admin/places/${id}/activate`, {
+      method: 'PUT',
+      headers: {
+        'x-admin-code': adminCode,
+      },
+    })
+  },
+
+  // 장소 거부 (INACTIVE로 변경)
+  rejectPlace: (id: number, adminCode: string): Promise<Place> => {
+    return fetchApi<Place>(`/admin/places/${id}/reject`, {
+      method: 'PUT',
+      headers: {
+        'x-admin-code': adminCode,
+      },
+    })
+  },
+}
+
 export { ApiError }
 

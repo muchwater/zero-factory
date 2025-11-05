@@ -35,6 +35,7 @@ docker compose up -d --build
 
 # 4. 서비스 접속
 # Frontend: http://localhost:3001
+# Frontend-admin: http://localhost:3001/admin
 # Backend API: http://localhost:3000
 ```
 
@@ -55,18 +56,21 @@ zero-factory/
 ## 기술 스택
 
 ### Backend (API)
+
 - NestJS - Node.js 프레임워크
 - Prisma ORM - 데이터베이스 ORM
 - PostgreSQL with PostGIS - 공간 데이터베이스
 - TypeScript - 타입 안전성
 
 ### Frontend (Web)
+
 - Next.js 15 - React 프레임워크
 - React 18 - UI 라이브러리
 - Tailwind CSS - 스타일링
 - TypeScript - 타입 안전성
 
 ### Infrastructure
+
 - Docker & Docker Compose - 컨테이너화
 - PostgreSQL 15 with PostGIS 3.4 - 데이터베이스
 - GitHub Actions - CI/CD
@@ -74,14 +78,17 @@ zero-factory/
 ## 문서
 
 ### 📚 시작하기
+
 - **[시작하기 가이드](./docs/getting-started.md)** - 프로젝트 설치 및 실행 방법
 - **[API Keys 설정](./docs/api-keys.md)** - Kakao Map API 키 발급 및 설정
 
 ### 💻 개발
+
 - **[로컬 개발 환경](./docs/development.md)** - 로컬에서 개발하는 방법
 - **[Docker 가이드](./docs/docker.md)** - Docker 명령어 및 사용법
 
 ### 🔧 운영 및 문제 해결
+
 - **[트러블슈팅](./docs/troubleshooting.md)** - 자주 발생하는 문제 해결 방법
 
 ## 환경 변수
@@ -107,6 +114,7 @@ NEXT_PUBLIC_KAKAO_MAP_KEY=your_kakao_map_key_here
 프로젝트는 GitHub Actions를 통해 자동으로 EC2에 배포됩니다.
 
 `main` 브랜치에 push하면:
+
 1. 자동으로 EC2 서버에 배포
 2. Docker 이미지 빌드
 3. 서비스 재시작

@@ -4,8 +4,9 @@ import { ConfigModule } from '@nestjs/config';
 import { PlacesModule } from '../places/places.module';
 import { MembersModule } from '../members/members.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { AdminModule } from '../admin/admin.module';
 @Module({
-  imports: [ConfigModule, PlacesModule, MembersModule, PrismaModule],
+  imports: [ConfigModule, PlacesModule, MembersModule, PrismaModule, AdminModule],
   controllers: [AppController],
   providers: [],
 })

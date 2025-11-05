@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PlaceStateType } from '@prisma/client';
 import { PlaceNearbyDto } from './dto/place-nearby.dto';
 import { CreatePlaceDto } from './dto/create-place.dto';
 import { getDayName, getWeekOfMonth } from '../common/day';
@@ -14,7 +15,7 @@ export class PlacesService {
     this.logger.log('📚 Getting all places...');
 
     const places = await this.prisma.place.findMany({
-      where: state ? { state: state as any } : undefined,
+      where: state ? { state: state as PlaceStateType } : undefined,
       include: {
         openingHours: true,
         exceptions: true,
@@ -195,7 +196,7 @@ export class PlacesService {
     this.logger.log(`🔄 Updating place ID ${id} state to ${state}`);
     await this.prisma.place.update({
       where: { id },
-      data: { state: state as any },
+      data: { state },
     });
     this.logger.log(`✅ Successfully updated place ID ${id} state to ${state}`);
     return this.prisma.place.findUnique({
