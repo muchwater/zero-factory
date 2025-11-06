@@ -1,0 +1,84 @@
+version: '3.8'
+
+# CPU 전용 버전 (GPU 없는 환경)
+# 사용법: docker-compose -f docker-compose.cpu.yml up -d
+
+services:
+  ai-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-model-server
+    restart: unless-stopped
+
+    # 포트 매핑
+    ports:
+      - "8000:8000"
+
+    # 환경 변수
+    environment:
+      - PORT=8000
+      - HOST=0.0.0.0
+      - DEVICE=cpu  # CPU 모드
+      - LOG_LEVEL=info
+      - PYTHONUNBUFFERED=1
+
+    # 볼륨 마운트
+    volumes:
+      - ./models:/app/models
+      - ./uploads:/app/uploads
+      - ./main.py:/app/main.py
+      - ./models:/app/models
+      - ./utils:/app/utils
+
+    # 네트워크
+    networks:
+      - ai-network
+
+  # Jupyter Notebook 서버
+  jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-jupyter
+    restart: unless-stopped
+
+    # 포트 매핑
+    ports:
+      - "8888:8888"
+
+    # 환경 변수
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - PYTHONUNBUFFERED=1
+      - DEVICE=cpu
+
+    # 볼륨 마운트
+    volumes:
+      - ./notebooks:/app/notebooks
+      - ./models:/app/models
+      - ./data:/app/data
+      - ./utils:/app/utils
+
+    # Jupyter 실행
+    command: >
+      jupyter lab
+      --ip=0.0.0.0
+      --port=8888
+      --no-browser
+      --allow-root
+      --NotebookApp.token=''
+      --NotebookApp.password=''
+
+    # 네트워크
+    networks:
+      - ai-network
+
+networks:
+  ai-network:
+    driver: bridge
+
+volumes:
+  models:
+  uploads:
+  data:

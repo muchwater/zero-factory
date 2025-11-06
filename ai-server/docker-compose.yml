@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  ai-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-model-server
+    restart: unless-stopped
+
+    # 포트 매핑
+    ports:
+      - "8000:8000"
+
+    # 환경 변수
+    environment:
+      - PORT=8000
+      - HOST=0.0.0.0
+      - DEVICE=cuda  # 또는 cpu
+      - LOG_LEVEL=info
+      - PYTHONUNBUFFERED=1
+
+    # 볼륨 마운트
+    volumes:
+      # 모델 가중치 (학습된 모델 저장)
+      - ./models:/app/models
+      # 업로드된 이미지
+      - ./uploads:/app/uploads
+      # 코드 핫 리로드 (개발 모드)
+      - ./main.py:/app/main.py
+      - ./models:/app/models
+      - ./utils:/app/utils
+
+    # GPU 지원 (NVIDIA GPU 필요)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all  # 모든 GPU 사용
+              capabilities: [gpu]
+
+    # 네트워크
+    networks:
+      - ai-network
+
+  # Jupyter Notebook 서버 (모델 학습용, 선택사항)
+  jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-jupyter
+    restart: unless-stopped
+
+    # 포트 매핑
+    ports:
+      - "8888:8888"
+
+    # 환경 변수
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - PYTHONUNBUFFERED=1
+
+    # 볼륨 마운트
+    volumes:
+      - ./notebooks:/app/notebooks
+      - ./models:/app/models
+      - ./data:/app/data
+      - ./utils:/app/utils
+
+    # GPU 지원
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+    # Jupyter 실행
+    command: >
+      jupyter lab
+      --ip=0.0.0.0
+      --port=8888
+      --no-browser
+      --allow-root
+      --NotebookApp.token=''
+      --NotebookApp.password=''
+
+    # 네트워크
+    networks:
+      - ai-network
+
+networks:
+  ai-network:
+    driver: bridge
+
+volumes:
+  models:
+  uploads:
+  data:
