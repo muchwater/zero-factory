@@ -29,10 +29,15 @@ Zero Factory는 제로웨이스트 라이프스타일을 실천하는 사람들�
 git clone https://github.com/muchwater/zero-factory.git
 cd zero-factory
 
-# 2. 개발 환경으로 실행
+# 2. 환경 변수 설정
+# .env.dev 파일에서 다음 값들을 설정하세요:
+# - NEXT_PUBLIC_KAKAO_MAP_KEY: 카카오맵 API 키 (https://developers.kakao.com/)
+# - ADMIN_CODE: 관리자 인증 코드
+
+# 3. 개발 환경으로 실행
 ./start-dev.sh
 
-# 3. 서비스 접속
+# 4. 서비스 접속
 # Frontend: http://localhost (또는 http://localhost:3001)
 # Frontend-admin: http://localhost/admin
 # Backend API: http://localhost:3000
@@ -41,10 +46,15 @@ cd zero-factory
 #### 배포 환경 (Production)
 
 ```bash
-# 1. 배포 환경으로 실행
+# 1. 환경 변수 설정
+# .env.prod 파일에서 다음 값들을 설정하세요:
+# - NEXT_PUBLIC_KAKAO_MAP_KEY: 카카오맵 API 키
+# - ADMIN_CODE: 보안이 강화된 관리자 인증 코드
+
+# 2. 배포 환경으로 실행
 ./start-prod.sh
 
-# 2. 서비스 접속
+# 3. 서비스 접속
 # Frontend: https://zeromap.store
 # Backend API: https://zeromap.store/api
 ```
