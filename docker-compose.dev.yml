@@ -1,0 +1,66 @@
+# Development environment overrides
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  # Nginx - Development configuration (HTTP only, no SSL)
+  nginx:
+    volumes:
+      - ./nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+      # No HTTPS port in development
+
+  # Certbot - Disabled in development
+  certbot:
+    profiles:
+      - production  # Only run in production
+
+  # API - Development configuration
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+      target: development  # Use development stage if multi-stage build
+    volumes:
+      # Enable hot-reload in development
+      - ./server:/app
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}"
+    ports:
+      # Expose ports for direct access in development
+      - "3000:3000"
+    command: npm run dev  # Use development command
+
+  # Web - Development configuration
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: "http://localhost:3000"
+        NEXT_PUBLIC_KAKAO_MAP_KEY: "${NEXT_PUBLIC_KAKAO_MAP_KEY}"
+    volumes:
+      # Enable hot-reload in development
+      - ./web:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      NEXT_PUBLIC_API_URL: "http://localhost:3000"
+      NEXT_PUBLIC_KAKAO_MAP_KEY: "${NEXT_PUBLIC_KAKAO_MAP_KEY}"
+      NODE_ENV: development
+    ports:
+      # Expose ports for direct access in development
+      - "3001:3001"
+    command: npm run dev  # Use development command
+
+  # Database - Development configuration
+  db:
+    ports:
+      - "5432:5432"  # Expose for local database tools
+    volumes:
+      - postgres-data-dev:/var/lib/postgresql/data  # Separate dev data
+
+volumes:
+  postgres-data-dev:

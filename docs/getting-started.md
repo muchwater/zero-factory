@@ -9,48 +9,96 @@ Zero Factory 프로젝트를 시작하는 방법을 안내합니다.
 
 ## 빠른 시작
 
-### 1. 환경 변수 설정
+Zero Factory는 개발 환경과 배포 환경을 자동으로 구분하여 실행할 수 있습니다.
 
-프로젝트 루트에서 `.env.example` 파일을 복사하여 `.env` 파일을 생성합니다:
+### 방법 1: 환경별 실행 스크립트 사용 (추천)
 
-```bash
-cp .env.example .env
-```
-
-필요한 경우 `.env` 파일을 열어 값들을 수정하세요:
+#### 개발 환경 (Development)
 
 ```bash
-# Database Configuration
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-POSTGRES_DB=zerowaste_dev
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/zerowaste_dev"
+# 개발 환경으로 실행
+./start-dev.sh
 
-# Frontend Configuration
-NEXT_PUBLIC_API_URL=http://localhost:3000
-
-# Kakao Map API Key (선택사항)
-NEXT_PUBLIC_KAKAO_MAP_KEY=
+# 중지
+./start-dev.sh down
 ```
+
+개발 환경에서는:
+- HTTP만 사용 (SSL 없음)
+- 모든 포트가 직접 노출됨 (3000, 3001, 5432)
+- Hot reload 활성화
+- 개발용 nginx 설정 사용
+
+**접속 URL:**
+- Frontend: http://localhost 또는 http://localhost:3001
+- Backend API: http://localhost:3000
+- Database: localhost:5432
+
+#### 배포 환경 (Production)
+
+```bash
+# 배포 환경으로 실행
+./start-prod.sh
+
+# 중지
+./start-prod.sh down
+```
+
+배포 환경에서는:
+- HTTPS 사용 (Let's Encrypt SSL)
+- Nginx를 통한 프록시만 노출
+- Production 최적화
+- 자동 SSL 인증서 갱신
+
+**접속 URL:**
+- Frontend: https://zeromap.store
+- Backend API: https://zeromap.store/api
+
+### 방법 2: 자동 환경 감지
+
+```bash
+# 환경을 자동으로 감지하여 실행
+./start.sh
+
+# 특정 명령어 실행
+./start.sh logs -f
+./start.sh down
+```
+
+자동 감지 기준:
+1. SSL 인증서 존재 여부
+2. 호스트명에 "prod" 또는 "dev" 키워드 포함 여부
+3. 기본값: development
+
+### 방법 3: Docker Compose 직접 사용
+
+```bash
+# 개발 환경
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+
+# 배포 환경
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+
+## 환경 변수 설정
+
+환경별로 다른 설정 파일을 사용합니다:
+
+- `.env.dev` - 개발 환경 설정 (git에 포함)
+- `.env.prod` - 배포 환경 설정 (git에 포함)
+- `.env` - 자동 생성 파일 (gitignore, 직접 수정 금지)
+
+환경 변수를 수정하려면 `.env.dev` 또는 `.env.prod` 파일을 수정하세요.
 
 > Kakao Map API Key 설정 방법은 [API Keys 가이드](./api-keys.md)를 참조하세요.
 
-### 2. Docker로 실행
+## 상세 가이드
 
-```bash
-docker compose up -d --build
-```
-
-### 3. 서비스 접속
-
-빌드가 완료되면 다음 주소에서 서비스에 접속할 수 있습니다:
-
-- **Frontend**: http://localhost:3001
-- **Backend API**: http://localhost:3000
-- **Database**: localhost:5432
+환경 설정에 대한 더 자세한 내용은 [환경 설정 가이드](./ENVIRONMENT_SETUP.md)를 참조하세요.
 
 ## 다음 단계
 
+- [환경 설정 가이드](./ENVIRONMENT_SETUP.md) - 환경별 상세 설정
 - [로컬 개발 환경 설정](./development.md)
 - [Docker 명령어 가이드](./docker.md)
 - [Kakao Map API 설정](./api-keys.md)

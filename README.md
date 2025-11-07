@@ -22,34 +22,63 @@ Zero Factory는 제로웨이스트 라이프스타일을 실천하는 사람들�
 
 ### 설치 및 실행
 
+#### 개발 환경 (Development)
+
 ```bash
 # 1. 저장소 클론
 git clone https://github.com/muchwater/zero-factory.git
 cd zero-factory
 
-# 2. 환경 변수 설정
-cp .env.example .env
+# 2. 개발 환경으로 실행
+./start-dev.sh
 
-# 3. Docker로 실행
-docker compose up -d --build
-
-# 4. 서비스 접속
-# Frontend: http://localhost:3001
-# Frontend-admin: http://localhost:3001/admin
+# 3. 서비스 접속
+# Frontend: http://localhost (또는 http://localhost:3001)
+# Frontend-admin: http://localhost/admin
 # Backend API: http://localhost:3000
 ```
 
-**더 자세한 설명은 [시작하기 가이드](./docs/getting-started.md)를 참조하세요.**
+#### 배포 환경 (Production)
+
+```bash
+# 1. 배포 환경으로 실행
+./start-prod.sh
+
+# 2. 서비스 접속
+# Frontend: https://zeromap.store
+# Backend API: https://zeromap.store/api
+```
+
+#### 자동 환경 감지
+
+```bash
+# 환경을 자동으로 감지하여 실행 (SSL 인증서 유무, 호스트명 등으로 판단)
+./start.sh
+```
+
+**더 자세한 설명은 [환경 설정 가이드](./docs/ENVIRONMENT_SETUP.md)와 [시작하기 가이드](./docs/getting-started.md)를 참조하세요.**
 
 ## 프로젝트 구조
 
 ```
 zero-factory/
-├── server/          # Backend API (NestJS)
-├── web/             # Frontend (Next.js)
-├── docs/            # 프로젝트 문서
-├── docker-compose.yml
-├── .env             # 환경 변수
+├── server/                   # Backend API (NestJS)
+├── web/                      # Frontend (Next.js)
+├── ai-server/                # AI Server & Label Studio
+├── docs/                     # 프로젝트 문서
+├── nginx/                    # Nginx 설정
+│   ├── nginx.conf           # Production 설정 (HTTPS)
+│   └── nginx.dev.conf       # Development 설정 (HTTP)
+├── docker-compose.yml        # Base 설정 (공통)
+├── docker-compose.dev.yml    # Development 오버라이드
+├── docker-compose.prod.yml   # Production 오버라이드
+├── .env                      # 활성 환경 변수 (자동 생성, gitignore)
+├── .env.dev                  # Development 환경 변수 템플릿
+├── .env.prod                 # Production 환경 변수 템플릿
+├── .env.example              # 환경 변수 예제
+├── start.sh                  # 자동 환경 감지 실행 스크립트
+├── start-dev.sh              # Development 강제 실행
+├── start-prod.sh             # Production 강제 실행
 └── README.md
 ```
 
@@ -79,6 +108,7 @@ zero-factory/
 
 ### 📚 시작하기
 
+- **[환경 설정 가이드](./docs/ENVIRONMENT_SETUP.md)** - 개발/배포 환경 설정 및 실행 방법 ⭐ NEW
 - **[시작하기 가이드](./docs/getting-started.md)** - 프로젝트 설치 및 실행 방법
 - **[API Keys 설정](./docs/api-keys.md)** - Kakao Map API 키 발급 및 설정
 
@@ -95,21 +125,31 @@ zero-factory/
 
 ## 환경 변수
 
-프로젝트는 다음 환경 변수를 사용합니다:
+프로젝트는 환경별로 다른 설정을 사용합니다:
 
+### Development (.env.dev)
 ```bash
-# Database (Server)
+NODE_ENV=development
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 POSTGRES_DB=zerowaste_dev
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/zerowaste_dev"
-
-# Frontend (Web)
 NEXT_PUBLIC_API_URL=http://localhost:3000
 NEXT_PUBLIC_KAKAO_MAP_KEY=your_kakao_map_key_here
 ```
 
-자세한 설정 방법은 [API Keys 가이드](./docs/api-keys.md)를 참조하세요.
+### Production (.env.prod)
+```bash
+NODE_ENV=production
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your_secure_password
+POSTGRES_DB=zerowaste_dev
+NEXT_PUBLIC_API_URL=https://zeromap.store/api
+NEXT_PUBLIC_KAKAO_MAP_KEY=your_kakao_map_key_here
+```
+
+**주의**: `.env` 파일은 자동으로 생성되므로 직접 수정하지 마세요. `.env.dev` 또는 `.env.prod`를 수정하세요.
+
+자세한 설정 방법은 [환경 설정 가이드](./docs/ENVIRONMENT_SETUP.md)와 [API Keys 가이드](./docs/api-keys.md)를 참조하세요.
 
 ## 배포
 
@@ -119,10 +159,15 @@ NEXT_PUBLIC_KAKAO_MAP_KEY=your_kakao_map_key_here
 
 1. 자동으로 EC2 서버에 배포
 2. Docker 이미지 빌드
-3. 서비스 재시작
+3. Production 환경으로 서비스 재시작 (`./start-prod.sh`)
 4. 헬스 체크 수행
 
-자세한 내용은 [Docker 가이드 - 프로덕션 배포](./docs/docker.md#프로덕션-배포)를 참조하세요.
+### 환경별 배포 방식
+
+- **개발 서버**: 자동으로 development 설정 사용
+- **배포 서버**: 자동으로 production 설정 사용 (SSL, HTTPS)
+
+자세한 내용은 [환경 설정 가이드](./docs/ENVIRONMENT_SETUP.md)와 [Docker 가이드 - 프로덕션 배포](./docs/docker.md#프로덕션-배포)를 참조하세요.
 
 ## 라이선스
 

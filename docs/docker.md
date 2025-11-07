@@ -2,11 +2,50 @@
 
 Docker Compose를 사용한 Zero Factory 프로젝트 관리 방법을 안내합니다.
 
+## 환경별 실행 방법
+
+Zero Factory는 개발(dev)과 배포(prod) 환경을 구분하여 관리합니다.
+
+### 추천 방법: 실행 스크립트 사용
+
+```bash
+# 개발 환경
+./start-dev.sh          # 시작
+./start-dev.sh down     # 중지
+./start-dev.sh logs -f  # 로그 확인
+
+# 배포 환경
+./start-prod.sh          # 시작
+./start-prod.sh down     # 중지
+./start-prod.sh logs -f  # 로그 확인
+
+# 자동 감지
+./start.sh              # 환경 자동 감지하여 시작
+```
+
+### Docker Compose 직접 사용
+
+```bash
+# 개발 환경
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+
+# 배포 환경
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.prod.yml down
+```
+
+> **참고**: 환경별 상세 설정은 [환경 설정 가이드](./ENVIRONMENT_SETUP.md)를 참조하세요.
+
 ## 기본 명령어
 
 ### 컨테이너 시작
 
 ```bash
+# 추천: 환경별 스크립트 사용
+./start-dev.sh
+
+# 또는 Docker Compose 직접 사용
 docker compose up -d
 ```
 
@@ -15,6 +54,10 @@ docker compose up -d
 ### 컨테이너 중지
 
 ```bash
+# 추천: 환경별 스크립트 사용
+./start-dev.sh down
+
+# 또는 Docker Compose 직접 사용
 docker compose down
 ```
 
@@ -27,6 +70,10 @@ docker compose down
 코드나 Dockerfile을 수정한 경우:
 
 ```bash
+# 추천: 환경별 스크립트 사용
+./start-dev.sh up -d --build
+
+# 또는 Docker Compose 직접 사용
 docker compose up -d --build
 ```
 
@@ -148,28 +195,38 @@ docker compose exec db bash
 
 ## 환경 변수 변경
 
-### 중요: Next.js 환경 변수 변경 시
+### 중요: 환경 변수 관리 방식
+
+`.env` 파일은 자동 생성되므로 **직접 수정하지 마세요**. 대신:
+
+- 개발 환경: `.env.dev` 파일 수정
+- 배포 환경: `.env.prod` 파일 수정
+
+### Next.js 환경 변수 변경 시
 
 Next.js는 빌드 타임에 환경 변수를 코드에 포함시키므로, 환경 변수 변경 후 **반드시 재빌드**가 필요합니다:
 
 ```bash
-# 1. .env 파일 수정
-vim .env
+# 1. 환경별 설정 파일 수정
+vim .env.dev  # 또는 .env.prod
 
 # 2. 컨테이너 중지
-docker compose down
+./start-dev.sh down
 
 # 3. 재빌드 및 시작
-docker compose up -d --build
+./start-dev.sh up -d --build
 ```
 
 ### Backend 환경 변수는 재시작만으로 충분
 
 ```bash
-# 1. .env 파일 수정
-vim .env
+# 1. 환경별 설정 파일 수정
+vim .env.dev  # 또는 .env.prod
 
-# 2. API 서비스만 재시작
+# 2. 활성 환경 변수 파일 업데이트
+cp .env.dev .env  # 개발 환경인 경우
+
+# 3. API 서비스만 재시작
 docker compose restart api
 ```
 
@@ -199,11 +256,28 @@ docker system prune -a
 
 1. EC2 서버에 SSH 접속
 2. 최신 코드 pull
-3. Docker 이미지 빌드
-4. 서비스 재시작
-5. 헬스 체크 수행
+3. **Production 환경 설정 적용** (`.env.prod` → `.env`)
+4. Docker 이미지 빌드
+5. **Production 모드로 서비스 재시작** (`./start-prod.sh`)
+6. 헬스 체크 수행
 
 워크플로우 파일: [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)
+
+### 환경별 배포 특징
+
+#### Development
+- HTTP only (포트 80)
+- 모든 서비스 포트 직접 노출
+- Hot reload 활성화
+- SSL 비활성화
+
+#### Production
+- HTTPS (포트 443) with SSL
+- Nginx 프록시만 노출
+- Production 최적화 빌드
+- Let's Encrypt 자동 SSL 갱신
+
+자세한 내용은 [환경 설정 가이드](./ENVIRONMENT_SETUP.md)를 참조하세요.
 
 ## 트러블슈팅
 
@@ -211,5 +285,6 @@ Docker 관련 문제는 [트러블슈팅 가이드](./troubleshooting.md)를 참
 
 ## 다음 단계
 
+- [환경 설정 가이드](./ENVIRONMENT_SETUP.md) - 개발/배포 환경 상세 설정
 - [로컬 개발 환경 설정](./development.md)
 - [트러블슈팅](./troubleshooting.md)

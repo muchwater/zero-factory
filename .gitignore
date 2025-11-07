@@ -3,6 +3,11 @@
 .env.local
 .env*.local
 
+# Keep environment templates in git
+!.env.dev
+!.env.prod
+!.env.example
+
 # Dependencies
 node_modules/
 

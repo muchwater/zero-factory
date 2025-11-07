@@ -89,10 +89,16 @@ GitHub Actions 탭에서 배포 진행 상황을 실시간으로 확인할 수 �
 2. ✅ GitHub Actions 워크플로우 자동 실행
 3. ✅ EC2 서버에 SSH 접속
 4. ✅ 최신 코드 pull (`git pull origin main`)
-5. ✅ Docker 컨테이너 빌드 (`docker compose build`)
-6. ✅ 서비스 재시작 (`docker compose up -d --force-recreate`)
-7. ✅ 헬스체크 수행
-8. ✅ 배포 완료
+5. ✅ **Production 환경 설정 적용** (`.env.prod` → `.env`)
+6. ✅ Docker 컨테이너 빌드
+7. ✅ **Production 모드로 서비스 재시작** (`./start-prod.sh`)
+   - HTTPS with SSL 적용
+   - Production 최적화 설정
+   - Let's Encrypt 인증서 사용
+8. ✅ 헬스체크 수행
+9. ✅ 배포 완료
+
+> **참고**: 개발 서버와 배포 서버는 자동으로 환경이 구분되어 적용됩니다. 자세한 내용은 [환경 설정 가이드](./ENVIRONMENT_SETUP.md)를 참조하세요.
 
 ## 📊 배포 확인 방법
 
@@ -106,20 +112,32 @@ GitHub Actions 탭에서 배포 진행 상황을 실시간으로 확인할 수 �
 # EC2 서버에 접속
 ssh -i your-key.pem ubuntu@43.201.190.116
 
+# 활성 환경 확인
+cat .env | head -n 1  # NODE_ENV=production 확인
+
 # 컨테이너 상태 확인
 docker compose ps
 
 # 로그 확인
 docker compose logs -f api
 docker compose logs -f web
+docker compose logs -f nginx
 
 # API 헬스체크
-curl http://localhost:3000/api/health
+curl http://localhost:3000/health
+# 또는 Nginx를 통해
+curl https://zeromap.store/api/health
 ```
 
 ### 브라우저에서 확인
-- API: http://43.201.190.116:3000
-- Web: http://43.201.190.116:3001
+
+**Production (배포 환경):**
+- Web: https://zeromap.store
+- API: https://zeromap.store/api
+
+**Development (개발 환경):**
+- Web: http://localhost 또는 http://localhost:3001
+- API: http://localhost:3000
 
 ## 🔧 문제 해결
 
@@ -168,8 +186,35 @@ curl http://localhost:3000/api/health
 5. **모니터링**: CloudWatch로 서버 상태 모니터링
 6. **로드 밸런서**: ALB를 통한 트래픽 분산
 
+## 🌍 환경별 배포 설정
+
+프로젝트는 개발 환경과 배포 환경을 자동으로 구분합니다:
+
+### Development (개발 서버)
+```bash
+# 개발 환경으로 배포
+./start-dev.sh
+```
+- HTTP only (포트 80)
+- 모든 서비스 포트 직접 노출
+- Hot reload 활성화
+- SSL 비활성화
+
+### Production (배포 서버)
+```bash
+# 배포 환경으로 배포
+./start-prod.sh
+```
+- HTTPS (포트 443) with SSL
+- Nginx 프록시만 노출
+- Production 최적화
+- Let's Encrypt 자동 SSL 갱신
+
+자세한 환경 설정 방법은 [환경 설정 가이드](./ENVIRONMENT_SETUP.md)를 참조하세요.
+
 ## 🔗 참고 자료
 
+- [환경 설정 가이드](./ENVIRONMENT_SETUP.md) - 개발/배포 환경 상세 설정
 - [GitHub Actions 문서](https://docs.github.com/en/actions)
 - [Docker Compose 문서](https://docs.docker.com/compose/)
 - [AWS EC2 가이드](https://docs.aws.amazon.com/ec2/)
