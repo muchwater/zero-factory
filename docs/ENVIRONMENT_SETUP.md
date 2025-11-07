@@ -22,40 +22,13 @@ zero-factory/
 ├── nginx/
 │   ├── nginx.conf               # Production nginx config (with HTTPS)
 │   └── nginx.dev.conf           # Development nginx config (HTTP only)
-├── start.sh                     # Auto-detect environment and start
-├── start-dev.sh                 # Force development environment
-└── start-prod.sh                # Force production environment
+├── start-dev.sh                 # Development environment script
+└── start-prod.sh                # Production environment script
 ```
 
 ## Quick Start
 
-### Option 1: Auto-detect Environment (Recommended)
-
-The `start.sh` script automatically detects whether to use development or production configuration:
-
-```bash
-# Start services (auto-detects environment)
-./start.sh
-
-# Stop services
-./start.sh down
-
-# View logs
-./start.sh logs -f
-
-# Rebuild and start
-./start.sh up -d --build
-```
-
-**Environment Detection Logic:**
-1. Checks `ENV` environment variable
-2. Checks for SSL certificates (indicates production)
-3. Checks hostname for "prod" or "dev" keywords
-4. Defaults to development if uncertain
-
-### Option 2: Explicit Environment
-
-Use explicit scripts to force a specific environment:
+### Option 1: Using Environment Scripts (Recommended)
 
 ```bash
 # Development
@@ -67,7 +40,7 @@ Use explicit scripts to force a specific environment:
 ./start-prod.sh down    # Stop prod services
 ```
 
-### Option 3: Manual Docker Compose
+### Option 2: Manual Docker Compose
 
 You can also use docker compose directly:
 
@@ -258,13 +231,6 @@ For automated deployments:
 
 ```bash
 # In your CI/CD pipeline (e.g., GitHub Actions)
-export ENV=prod
-./start.sh up -d --build
-```
-
-Or explicitly:
-
-```bash
 ./start-prod.sh up -d --build
 ```
 

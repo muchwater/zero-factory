@@ -59,13 +59,6 @@ cd zero-factory
 # Backend API: https://zeromap.store/api
 ```
 
-#### 자동 환경 감지
-
-```bash
-# 환경을 자동으로 감지하여 실행 (SSL 인증서 유무, 호스트명 등으로 판단)
-./start.sh
-```
-
 **더 자세한 설명은 [환경 설정 가이드](./docs/ENVIRONMENT_SETUP.md)와 [시작하기 가이드](./docs/getting-started.md)를 참조하세요.**
 
 ## 프로젝트 구조
@@ -82,13 +75,12 @@ zero-factory/
 ├── docker-compose.yml        # Base 설정 (공통)
 ├── docker-compose.dev.yml    # Development 오버라이드
 ├── docker-compose.prod.yml   # Production 오버라이드
-├── .env                      # 활성 환경 변수 (자동 생성, gitignore)
+├── .env                      # 활성 환경 변수 (사용자 생성, gitignore)
 ├── .env.dev                  # Development 환경 변수 템플릿
 ├── .env.prod                 # Production 환경 변수 템플릿
 ├── .env.example              # 환경 변수 예제
-├── start.sh                  # 자동 환경 감지 실행 스크립트
-├── start-dev.sh              # Development 강제 실행
-├── start-prod.sh             # Production 강제 실행
+├── start-dev.sh              # Development 환경 실행 스크립트
+├── start-prod.sh             # Production 환경 실행 스크립트
 └── README.md
 ```
 

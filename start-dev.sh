@@ -10,12 +10,15 @@ set -e
 echo "Starting in DEVELOPMENT mode..."
 echo ""
 
-# Copy dev environment file
-if [ -f ".env.dev" ]; then
-    cp .env.dev .env
-    echo "Copied .env.dev to .env"
-else
-    echo "ERROR: .env.dev not found!"
+# Check if .env file exists
+if [ ! -f ".env" ]; then
+    echo "ERROR: .env file not found!"
+    echo "Please copy .env.dev to .env and configure your API keys:"
+    echo "  cp .env.dev .env"
+    echo ""
+    echo "Then edit .env and set:"
+    echo "  - NEXT_PUBLIC_KAKAO_MAP_KEY"
+    echo "  - ADMIN_CODE"
     exit 1
 fi
 

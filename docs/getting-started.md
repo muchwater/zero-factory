@@ -54,23 +54,7 @@ Zero Factory는 개발 환경과 배포 환경을 자동으로 구분하여 실�
 - Frontend: https://zeromap.store
 - Backend API: https://zeromap.store/api
 
-### 방법 2: 자동 환경 감지
-
-```bash
-# 환경을 자동으로 감지하여 실행
-./start.sh
-
-# 특정 명령어 실행
-./start.sh logs -f
-./start.sh down
-```
-
-자동 감지 기준:
-1. SSL 인증서 존재 여부
-2. 호스트명에 "prod" 또는 "dev" 키워드 포함 여부
-3. 기본값: development
-
-### 방법 3: Docker Compose 직접 사용
+### 방법 2: Docker Compose 직접 사용
 
 ```bash
 # 개발 환경

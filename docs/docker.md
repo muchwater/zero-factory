@@ -18,9 +18,6 @@ Zero Factory는 개발(dev)과 배포(prod) 환경을 구분하여 관리합니�
 ./start-prod.sh          # 시작
 ./start-prod.sh down     # 중지
 ./start-prod.sh logs -f  # 로그 확인
-
-# 자동 감지
-./start.sh              # 환경 자동 감지하여 시작
 ```
 
 ### Docker Compose 직접 사용

@@ -10,12 +10,15 @@ set -e
 echo "Starting in PRODUCTION mode..."
 echo ""
 
-# Copy prod environment file
-if [ -f ".env.prod" ]; then
-    cp .env.prod .env
-    echo "Copied .env.prod to .env"
-else
-    echo "ERROR: .env.prod not found!"
+# Check if .env file exists
+if [ ! -f ".env" ]; then
+    echo "ERROR: .env file not found!"
+    echo "Please copy .env.prod to .env and configure your API keys:"
+    echo "  cp .env.prod .env"
+    echo ""
+    echo "Then edit .env and set:"
+    echo "  - NEXT_PUBLIC_KAKAO_MAP_KEY"
+    echo "  - ADMIN_CODE"
     exit 1
 fi
 
