@@ -132,8 +132,10 @@ def create_metadata_json(results, output_file: str):
     for item in results:
         metadata.append({
             'image': item['image'],
+            'cup_code': item['labels'].get('cup_code'),
             'container_type': item['labels'].get('container_type'),
             'beverage_status': item['labels'].get('beverage_status'),
+            'lid_status': item['labels'].get('lid_status'),
             'quality': item['labels'].get('quality', []),
             'notes': item['labels'].get('notes', '')
         })
@@ -145,11 +147,60 @@ def create_metadata_json(results, output_file: str):
     print(f"Total images: {len(metadata)}")
 
 
+def create_cup_code_statistics(results, output_file: str):
+    """컵 코드별 통계 생성"""
+    cup_code_stats = {}
+
+    for item in results:
+        cup_code = item['labels'].get('cup_code')
+        if cup_code:
+            if cup_code not in cup_code_stats:
+                cup_code_stats[cup_code] = {
+                    'count': 0,
+                    'with_beverage': 0,
+                    'empty': 0,
+                    'unclear_beverage': 0,
+                    'has_lid': 0,
+                    'no_lid': 0,
+                    'unclear_lid': 0
+                }
+
+            cup_code_stats[cup_code]['count'] += 1
+
+            # 음료 유무 통계
+            beverage_status = item['labels'].get('beverage_status')
+            if beverage_status == 'has_beverage':
+                cup_code_stats[cup_code]['with_beverage'] += 1
+            elif beverage_status == 'empty':
+                cup_code_stats[cup_code]['empty'] += 1
+            elif beverage_status == 'unclear':
+                cup_code_stats[cup_code]['unclear_beverage'] += 1
+
+            # 뚜껑 유무 통계
+            lid_status = item['labels'].get('lid_status')
+            if lid_status == 'has_lid':
+                cup_code_stats[cup_code]['has_lid'] += 1
+            elif lid_status == 'no_lid':
+                cup_code_stats[cup_code]['no_lid'] += 1
+            elif lid_status == 'unclear':
+                cup_code_stats[cup_code]['unclear_lid'] += 1
+
+    with open(output_file, 'w', encoding='utf-8') as f:
+        json.dump(cup_code_stats, f, indent=2, ensure_ascii=False)
+
+    print(f"\nCup code statistics saved to: {output_file}")
+    print("\n=== Cup Code Statistics ===")
+    for cup_code, stats in sorted(cup_code_stats.items()):
+        print(f"\n{cup_code}: {stats['count']} images")
+        print(f"  Beverage: {stats['with_beverage']} with / {stats['empty']} empty / {stats['unclear_beverage']} unclear")
+        print(f"  Lid: {stats['has_lid']} has / {stats['no_lid']} no / {stats['unclear_lid']} unclear")
+
+
 def main():
     parser = argparse.ArgumentParser(description='Convert Label Studio annotations to training dataset')
     parser.add_argument('json_file', help='Label Studio export JSON file')
     parser.add_argument('--output-dir', default='../data', help='Output directory')
-    parser.add_argument('--task', choices=['reusable', 'beverage', 'both', 'metadata'],
+    parser.add_argument('--task', choices=['reusable', 'beverage', 'both', 'metadata', 'cup_stats'],
                        default='both', help='Which dataset to create')
 
     args = parser.parse_args()
@@ -172,6 +223,11 @@ def main():
         print("\n=== Creating Metadata JSON ===")
         metadata_file = Path(args.output_dir) / 'annotations_metadata.json'
         create_metadata_json(results, str(metadata_file))
+
+    if args.task == 'cup_stats':
+        print("\n=== Creating Cup Code Statistics ===")
+        stats_file = Path(args.output_dir) / 'cup_code_statistics.json'
+        create_cup_code_statistics(results, str(stats_file))
 
     print("\n✅ Conversion complete!")
     print("\nNext steps:")

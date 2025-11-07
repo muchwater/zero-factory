@@ -12,6 +12,22 @@
 
   <View style="flex: 1; overflow-y: auto; max-height: 85vh; padding-right: 10px;">
 
+
+  <!-- 0단계: 컵 코드 -->
+  <Header value="0. 컵 코드"/>
+  <Choices name="cup_code" toName="image" choice="single-radio" required="true">
+    <Choice value="black_starbucks" background="#007bff" hint="블랙 스타벅스 텀블러 [1]"/>
+    <Choice value="u_turn_cup" background="#28a745" hint="유턴컵 [2]"/>
+    <Choice value="short_paper_cup" background="#ffc107" hint="짧은 종이컵 [3]"/>
+    <Choice value="mug_cup" background="#17a2b8" hint="머그컵 [4]"/>
+    <Choice value="steel_cup" background="#6f42c1" hint="스틸컵 [5]"/>
+    <Choice value="disposable_plastic" background="#fd7e14" hint="일회용 플라스틱컵 [6]"/>
+    <Choice value="PET_bottle" background="#20c997" hint="플라스틱 병 [7]"/>
+    <Choice value="stanley_quencher" background="#dc3545" hint="스탠리 손잡이 텀블러 [8]"/>
+    <Choice value="tritan_bottle" background="#6610f2" hint="재사용 플라스틱컵 [9]"/>
+    <Choice value="blue_tritan_bottle" background="#0d6efd" hint="파란 재사용 물병 [0]"/>
+  </Choices>
+
   <!-- 1단계: 다회용기 분류 -->
   <Header value="1. 용기 분류"/>
   <Choices name="container_type" toName="image" choice="single-radio" required="true">
@@ -36,13 +52,14 @@
     <Choice value="unclear" background="#6c757d" hint="불분명"/>
   </Choices>
 
-  <!-- 4단계: 객체 탐지 (선택사항) -->
+  <!-- 4단계: 객체 탐지 -->
   <Header value="4. 객체 위치 표시 (선택사항)"/>
   <RectangleLabels name="objects" toName="image" strokeWidth="3">
     <Label value="container" background="#17a2b8" hint="용기 전체"/>
     <Label value="beverage_surface" background="#28a745" hint="음료 표면"/>
     <Label value="lid" background="#ffc107" hint="뚜껑"/>
   </RectangleLabels>
+
 
   <!-- 메모 -->
   <TextArea name="notes" toName="image" placeholder="특이사항이나 애매한 케이스 설명..." rows="2"/>
@@ -51,6 +68,22 @@
 ```
 
 ## 라벨링 가이드라인
+
+### 0. 컵 코드 (Cup Code)
+
+이미지에 나타난 용기의 유형을 10가지 중에서 선택하세요. 단축키 [숫자]를 사용할 수 있습니다.
+
+**컵 코드 목록**:
+1. **black_starbucks** [1]: 블랙 스타벅스 텀블러
+2. **u_turn_cup** [2]: 유턴컵
+3. **short_paper_cup** [3]: 짧은 종이컵
+4. **mug_cup** [4]: 머그컵
+5. **steel_cup** [5]: 스틸컵
+6. **disposable_plastic** [6]: 일회용 플라스틱컵
+7. **PET_bottle** [7]: 플라스틱 병 (PET 병)
+8. **stanley_quencher** [8]: 스탠리 손잡이 텀블러
+9. **tritan_bottle** [9]: 재사용 플라스틱컵 (트라이탄)
+10. **blue_tritan_bottle** [0]: 파란 재사용 물병
 
 ### 1. 다회용기 분류
 
@@ -109,7 +142,7 @@
 
 - **Space**: 다음 이미지
 - **Ctrl + Enter**: 제출
-- **숫자 1-9**: 빠른 라벨 선택
+- **숫자 0-9**: 컵 코드 빠른 선택
 - **Ctrl + Z**: 실행 취소
 
 ## 데이터 내보내기 및 변환
