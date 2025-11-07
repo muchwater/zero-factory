@@ -66,14 +66,14 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
     document.head.appendChild(script)
   }, [])
 
-  // 맵 초기화
+  // 맵 초기화 (최초 1회만 실행)
   useEffect(() => {
-    if (!isScriptLoaded || !mapRef.current) return
+    if (!isScriptLoaded || !mapRef.current || mapInstanceRef.current) return
 
     const initializeMap = () => {
       try {
         window.kakao.maps.load(() => {
-          if (mapRef.current) {
+          if (mapRef.current && !mapInstanceRef.current) {
             const mapOptions = {
               center: new window.kakao.maps.LatLng(
                 options.center?.lat || 37.5665,
@@ -95,7 +95,33 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
     }
 
     initializeMap()
-  }, [isScriptLoaded, options.center?.lat, options.center?.lng, options.level])
+
+    // cleanup 함수: 컴포넌트 언마운트 시 맵 정리
+    return () => {
+      if (mapInstanceRef.current) {
+        console.log('카카오맵 정리')
+        mapInstanceRef.current = null
+      }
+    }
+  }, [isScriptLoaded])
+
+  // center 변경 시 맵 중심 이동
+  useEffect(() => {
+    if (mapInstanceRef.current && options.center && window.kakao) {
+      const moveLatLon = new window.kakao.maps.LatLng(
+        options.center.lat,
+        options.center.lng
+      )
+      mapInstanceRef.current.setCenter(moveLatLon)
+    }
+  }, [options.center?.lat, options.center?.lng])
+
+  // level 변경 시 줌 레벨 조정
+  useEffect(() => {
+    if (mapInstanceRef.current && options.level !== undefined) {
+      mapInstanceRef.current.setLevel(options.level)
+    }
+  }, [options.level])
 
   // 마커 스타일 생성 함수
   const getMarkerStyle = (markerData: MarkerData) => {

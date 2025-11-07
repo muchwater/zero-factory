@@ -77,18 +77,8 @@ export default function KakaoMap({
     return (
       <div 
         style={{ width, height }}
-        className={`rounded-md overflow-hidden bg-gray-100 flex items-center justify-center ${className}`}
-      >
-        <div className="text-center p-4">
-          <div className="text-red-500 text-lg mb-2">⚠️</div>
-          <div className="text-sm text-gray-600">
-            카카오맵 로드 실패
-          </div>
-          <div className="text-xs text-gray-500 mt-1">
-            {error}
-          </div>
-        </div>
-      </div>
+        className={`rounded-md overflow-hidden bg-white ${className}`}
+      />
     )
   }
 
@@ -131,7 +121,7 @@ export default function KakaoMap({
       <div 
         ref={mapRef} 
         style={{ width: '100%', height: '100%' }}
-        className="rounded-md overflow-hidden bg-gray-100"
+        className="rounded-md overflow-hidden bg-white"
       />
       
       {/* 맵 컨트롤 */}
@@ -143,12 +133,7 @@ export default function KakaoMap({
       
       {/* 로딩 오버레이 */}
       {isLoading && (
-        <div className="absolute inset-0 bg-gray-100 flex items-center justify-center rounded-md">
-          <div className="text-center">
-            <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
-            <div className="text-sm text-gray-600">카카오맵 로딩 중...</div>
-          </div>
-        </div>
+        <div className="absolute inset-0 bg-white rounded-md" />
       )}
     </div>
   )
