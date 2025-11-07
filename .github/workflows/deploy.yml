@@ -32,14 +32,27 @@ jobs:
             echo "🚀 Restarting services..."
             docker compose up -d --force-recreate
 
+            echo "🤖 Building AI Server containers..."
+            cd ai-server
+            docker compose build
+            docker compose up -d --force-recreate
+            cd ..
+
             echo "⏳ Waiting for services to start..."
             sleep 10
 
             echo "🔍 Checking service health..."
             docker compose ps
+            cd ai-server && docker compose ps && cd ..
 
             echo "✅ Checking API health endpoint..."
             curl -f http://localhost:3000/health || echo "⚠️  API health check failed"
+
+            echo "✅ Checking AI Server health endpoint..."
+            curl -f http://localhost:8000/health || echo "⚠️  AI Server health check failed"
+
+            echo "✅ Checking Label Studio..."
+            curl -f http://localhost:8080/ || echo "⚠️  Label Studio health check failed"
 
             echo "🎉 Deployment completed!"
 
