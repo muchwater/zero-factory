@@ -1,10 +1,10 @@
 'use client'
 
-import { HomeIcon, ListIcon, UserIcon } from './IconComponents'
+import { HomeIcon, ListIcon, UserIcon, CameraIcon } from './IconComponents'
 
 interface BottomNavigationProps {
-  activeTab: 'home' | 'search' | 'profile'
-  onTabChange: (tab: 'home' | 'search' | 'profile') => void
+  activeTab: 'home' | 'search' | 'camera' | 'profile'
+  onTabChange: (tab: 'home' | 'search' | 'camera' | 'profile') => void
 }
 
 export default function BottomNavigation({ activeTab, onTabChange }: BottomNavigationProps) {
@@ -18,6 +18,11 @@ export default function BottomNavigation({ activeTab, onTabChange }: BottomNavig
       id: 'home' as const,
       label: '홈',
       icon: HomeIcon,
+    },
+    {
+      id: 'camera' as const,
+      label: '카메라',
+      icon: CameraIcon,
     },
     {
       id: 'profile' as const,

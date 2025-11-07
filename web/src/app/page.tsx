@@ -13,7 +13,7 @@ import type { Place, PlaceNearby } from '@/types/api'
 
 export default function Home() {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<'home' | 'search' | 'profile'>('home')
+  const [activeTab, setActiveTab] = useState<'home' | 'search' | 'camera' | 'profile'>('home')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [selectedPlace, setSelectedPlace] = useState<Place | PlaceNearby | null>(null)
@@ -133,6 +133,22 @@ export default function Home() {
     router.push('/add-place')
   }
 
+  const handleTabChange = (tab: 'home' | 'search' | 'camera' | 'profile') => {
+    setActiveTab(tab)
+
+    // 탭에 따라 페이지 이동
+    switch (tab) {
+      case 'camera':
+        router.push('/camera')
+        break
+      case 'home':
+      case 'search':
+      case 'profile':
+        // 현재 페이지에 머무름 (향후 각 페이지가 생기면 라우팅 추가)
+        break
+    }
+  }
+
   return (
     <div className="bg-background min-h-screen flex flex-col pb-20">
       {/* Header */}
@@ -248,9 +264,9 @@ export default function Home() {
       </div>
 
       {/* Bottom Navigation */}
-      <BottomNavigation 
+      <BottomNavigation
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
       />
     </div>
   )
