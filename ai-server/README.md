@@ -76,10 +76,11 @@ curl http://localhost:8000/health
 
 ### 서비스 구성
 
-**ai-server/docker-compose.yml**에 2개 서비스:
+**ai-server/docker-compose.yml**에 3개 서비스:
 
 1. **ai-server**: FastAPI 서버 (포트 8000)
 2. **jupyter**: Jupyter Lab 서버 (포트 8888, 선택사항)
+3. **label-studio**: 데이터셋 어노테이션 툴 (포트 8080, 선택사항)
 
 ### 서비스 관리
 
@@ -116,6 +117,31 @@ docker-compose up -d jupyter
 # (토큰 없이 접속 가능하도록 설정됨)
 ```
 
+### Label Studio 사용 (데이터셋 어노테이션)
+
+```bash
+# Label Studio 서버 시작
+docker-compose up -d label-studio
+
+# 브라우저에서 접속
+# http://localhost:8080
+
+# 기본 로그인 정보:
+# Email: admin@example.com
+# Password: admin123
+```
+
+**주요 기능**:
+- 이미지 자르기, 회전, 확대/축소
+- Bounding Box, Polygon, Segmentation 어노테이션
+- COCO, YOLO, Pascal VOC 등 다양한 포맷으로 내보내기
+- 프로젝트별 데이터 관리
+
+**데이터 위치**:
+- 어노테이션할 이미지: `data/` 디렉토리에 배치
+- 프로젝트 데이터: `label-studio/data/`에 자동 저장
+- 내보내기 결과: `label-studio/export/`
+
 ### 볼륨 관리
 
 데이터는 다음 디렉토리에 저장됩니다:
@@ -125,7 +151,10 @@ ai-server/
 ├── models/          # 학습된 모델 가중치
 ├── uploads/         # 업로드된 이미지
 ├── data/           # 학습 데이터
-└── notebooks/      # Jupyter notebooks
+├── notebooks/      # Jupyter notebooks
+└── label-studio/   # Label Studio 데이터
+    ├── data/       # 프로젝트 및 어노테이션
+    └── export/     # 내보내기 결과
 ```
 
 ---

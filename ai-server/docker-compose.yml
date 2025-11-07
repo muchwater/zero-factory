@@ -91,9 +91,37 @@ services:
     networks:
       - ai-network
 
+  # Label Studio - 데이터셋 어노테이션 툴
+  label-studio:
+    image: heartexlabs/label-studio:latest
+    container_name: ai-label-studio
+    restart: unless-stopped
+
+    # 포트 매핑
+    ports:
+      - "8080:8080"
+
+    # 환경 변수
+    environment:
+      - LABEL_STUDIO_USERNAME=admin@example.com
+      - LABEL_STUDIO_PASSWORD=admin123
+      - LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED=true
+      - LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT=/label-studio/files
+
+    # 볼륨 마운트
+    volumes:
+      - ./label-studio/data:/label-studio/data
+      - ./data:/label-studio/files:ro
+
+    # 네트워크
+    networks:
+      - zero-factory_app-network
+
 networks:
   ai-network:
     driver: bridge
+  zero-factory_app-network:
+    external: true
 
 volumes:
   models:

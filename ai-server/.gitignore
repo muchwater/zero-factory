@@ -44,6 +44,10 @@ uploads/
 *.png
 *.gif
 
+# Label Studio
+label-studio/data/
+label-studio/export/
+
 # Environment
 .env
 .env.local
