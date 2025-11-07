@@ -52,7 +52,7 @@ export default function CategoryCard({
         <div className="flex-1 min-w-0">
           <h3 className={`
             font-semibold text-sm transition-colors duration-300
-            ${isActive ? 'text-primary' : 'text-foreground group-hover:text-primary'}
+            ${isActive ? 'text-primary' : 'text-black group-hover:text-primary'}
           `}>
             {title}
           </h3>
