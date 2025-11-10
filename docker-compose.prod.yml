@@ -32,10 +32,10 @@ services:
       context: ./web
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: "https://zeromap.store/api"
+        NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL}"
         NEXT_PUBLIC_KAKAO_MAP_KEY: "${NEXT_PUBLIC_KAKAO_MAP_KEY}"
     environment:
-      NEXT_PUBLIC_API_URL: "https://zeromap.store/api"
+      NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL}"
       NEXT_PUBLIC_KAKAO_MAP_KEY: "${NEXT_PUBLIC_KAKAO_MAP_KEY}"
       NODE_ENV: production
     restart: unless-stopped

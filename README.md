@@ -135,21 +135,37 @@ NODE_ENV=development
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=postgres
 POSTGRES_DB=zerowaste_dev
+DATABASE_URL="postgresql://postgres:postgres@db:5432/zerowaste_dev"
 NEXT_PUBLIC_API_URL=http://localhost:3000
 NEXT_PUBLIC_KAKAO_MAP_KEY=your_kakao_map_key_here
 ```
 
-### Production (.env.prod)
+### Production (.env 또는 .env.prod)
 ```bash
 NODE_ENV=production
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=your_secure_password
 POSTGRES_DB=zerowaste_dev
+DATABASE_URL="postgresql://postgres:postgres@db:5432/zerowaste_dev"
 NEXT_PUBLIC_API_URL=https://zeromap.store/api
 NEXT_PUBLIC_KAKAO_MAP_KEY=your_kakao_map_key_here
+DOMAIN=zeromap.store
 ```
 
-**주의**: `.env` 파일은 자동으로 생성되므로 직접 수정하지 마세요. `.env.dev` 또는 `.env.prod`를 수정하세요.
+### ⚠️ 중요 사항
+
+**NEXT_PUBLIC_API_URL 설정 필수:**
+- 이 환경 변수는 빌드 시점에 반드시 설정되어야 합니다
+- 설정되지 않으면 빌드가 실패합니다 (하드코딩된 폴백 URL 제거됨)
+- Docker 빌드 전에 `.env` 파일에 올바른 값이 설정되어 있는지 확인하세요
+
+**DATABASE_URL 호스트:**
+- Docker 환경: `db` 사용 (컨테이너 이름)
+- 로컬 개발: `localhost` 사용
+
+**환경 변수 변경 후 재빌드 필요:**
+- `NEXT_PUBLIC_*` 환경 변수를 변경한 경우 반드시 웹 컨테이너를 재빌드해야 합니다
+- 빌드 명령어: `docker compose -f docker-compose.yml -f docker-compose.prod.yml build --no-cache web`
 
 자세한 설정 방법은 [환경 설정 가이드](./docs/ENVIRONMENT_SETUP.md)와 [API Keys 가이드](./docs/api-keys.md)를 참조하세요.
 

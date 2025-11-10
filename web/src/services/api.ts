@@ -2,7 +2,15 @@
 
 import type { Place, PlaceNearby } from '@/types/api'
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://43.201.190.116:3000'
+// Validate that NEXT_PUBLIC_API_URL is set at build time
+if (!process.env.NEXT_PUBLIC_API_URL) {
+  throw new Error(
+    'NEXT_PUBLIC_API_URL environment variable is not set. ' +
+    'Please set it in your .env file before building.'
+  )
+}
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
 
 class ApiError extends Error {
   constructor(public status: number, message: string) {
