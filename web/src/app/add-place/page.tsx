@@ -38,6 +38,7 @@ export default function AddPlacePage() {
         types: [facilityType], // 시설 종류에 따라 자동으로 type 설정
         description: description,
         contact: formData.contact,
+        reportedBrand: formData.serviceName, // 서비스명 추가
         coordinates: formData.coordinates
       })
       

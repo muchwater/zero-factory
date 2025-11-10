@@ -3,7 +3,41 @@
 Label Studio 어노테이션을 학습 데이터셋으로 변환하는 스크립트
 
 사용법:
-    python convert_labelstudio_to_dataset.py export.json --image-dir /path/to/images --output-dir ./output
+    # 기본 사용 (현재 디렉토리에 ZIP 파일 생성)
+    python convert_labelstudio_to_dataset.py export.json --image-dir ./images
+
+    # 임베딩용 types/ 디렉토리 포함
+    python convert_labelstudio_to_dataset.py export.json --image-dir ./images --include-types
+
+    # 출력 디렉토리 지정
+    python convert_labelstudio_to_dataset.py export.json --image-dir ./images --output-dir ./datasets
+
+    # 출력 디렉토리와 파일명 지정
+    python convert_labelstudio_to_dataset.py export.json --image-dir ./images --output-dir ./datasets --output-file my_dataset.zip
+
+    # reusable 데이터셋만 생성
+    python convert_labelstudio_to_dataset.py export.json --image-dir ./images --task reusable
+
+    # beverage 데이터셋과 types 포함
+    python convert_labelstudio_to_dataset.py export.json --image-dir ./images --task beverage --include-types
+
+    # 우리 파일구조에서,,,
+    python3 ./scripts/convert_labelstudio_to_dataset.py ./label-studio/export/project-1-at-2025-11-10-01-59-baddde76.json --image-dir ./data/raw_images/ --output-dir ./dataset_output --include-types
+
+출력 구조:
+    dataset_YYYYMMDD_HHMMSS.zip
+    ├── reusable/
+    │   ├── reusable/       # 다회용 용기 이미지
+    │   ├── disposable/     # 일회용 용기 이미지
+    │   └── unclear/        # 불분명한 이미지
+    ├── beverage/
+    │   ├── with_beverage/  # 음료가 있는 이미지
+    │   ├── empty/          # 빈 용기 이미지
+    │   └── unclear/        # 불분명한 이미지
+    └── types/              # --include-types 사용 시
+        ├── CUP001/         # 컵 코드별 분류 (임베딩용)
+        ├── CUP002/
+        └── ...
 """
 
 import json
@@ -16,6 +50,7 @@ import requests
 from io import BytesIO
 import zipfile
 from datetime import datetime
+import tempfile
 
 
 def parse_labelstudio_json(json_path: str, base_image_dir: str = None):
@@ -221,6 +256,66 @@ def create_classification_dataset(results, output_dir: str, task: str, image_dir
         print(f"Failed images: {', '.join(failed[:10])}{' ...' if len(failed) > 10 else ''}")
 
 
+def create_embedding_dataset(results, output_dir: str, image_dir: str = None):
+    """임베딩용 데이터셋 생성 (cup_code별로 크롭된 이미지 분류)
+
+    Args:
+        results: 파싱된 결과
+        output_dir: 출력 디렉토리
+        image_dir: 원본 이미지 디렉토리
+    """
+    output_path = Path(output_dir)
+
+    stats = {}
+    failed = []
+    skipped_no_cup_code = 0
+
+    # 각 이미지를 크롭하고 cup_code별로 저장
+    for idx, item in enumerate(results):
+        cup_code = item['labels'].get('cup_code')
+
+        if not cup_code:
+            skipped_no_cup_code += 1
+            continue
+
+        # cup_code 디렉토리 생성
+        cup_dir = output_path / 'types' / cup_code
+        cup_dir.mkdir(parents=True, exist_ok=True)
+
+        if cup_code not in stats:
+            stats[cup_code] = 0
+
+        try:
+            # Container 영역으로 크롭
+            cropped_img = load_and_crop_image(
+                item['image_path'],
+                item['container_bbox'],
+                image_dir
+            )
+
+            # 저장
+            dest_path = cup_dir / item['image']
+            cropped_img.save(dest_path)
+
+            stats[cup_code] += 1
+            if (idx + 1) % 10 == 0:
+                print(f"Processed {idx + 1}/{len(results)} images...")
+
+        except Exception as e:
+            failed.append(item['image'])
+            print(f"❌ Failed to process {item['image']}: {e}")
+
+    print(f"\n=== EMBEDDING Dataset Statistics ===")
+    for cup_code in sorted(stats.keys()):
+        print(f"{cup_code}: {stats[cup_code]} images")
+    print(f"Total: {sum(stats.values())} images")
+    if skipped_no_cup_code > 0:
+        print(f"Skipped (no cup_code): {skipped_no_cup_code} images")
+    if failed:
+        print(f"\n⚠️  Failed: {len(failed)} images")
+        print(f"Failed images: {', '.join(failed[:10])}{' ...' if len(failed) > 10 else ''}")
+
+
 def create_metadata_json(results, output_file: str):
     """메타데이터 JSON 생성 (임베딩 시스템용)"""
     metadata = []
@@ -292,50 +387,67 @@ def create_cup_code_statistics(results, output_file: str):
         print(f"  Lid: {stats['has_lid']} has / {stats['no_lid']} no / {stats['unclear_lid']} unclear")
 
 
-def create_zip_archives(output_dir: str, task: str):
-    """데이터셋을 ZIP 파일로 압축
+def create_zip_archive(temp_dir: str, output_dir: str, output_filename: str, task: str, include_types: bool = False):
+    """임시 디렉토리의 데이터셋을 ZIP 파일로 압축
 
     Args:
-        output_dir: 출력 디렉토리
+        temp_dir: 임시 데이터셋 디렉토리
+        output_dir: 최종 ZIP 파일이 저장될 디렉토리
+        output_filename: ZIP 파일명 (None이면 자동 생성)
         task: 'reusable', 'beverage', 또는 'both'
+        include_types: types 디렉토리 포함 여부
 
     Returns:
-        list: 생성된 ZIP 파일 경로 리스트
+        str: 생성된 ZIP 파일 경로
     """
+    temp_path = Path(temp_dir)
     output_path = Path(output_dir)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    zip_files = []
 
+    # 출력 디렉토리 생성
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # 압축할 task 목록 결정
     tasks_to_zip = []
     if task in ['reusable', 'both']:
         tasks_to_zip.append('reusable')
     if task in ['beverage', 'both']:
         tasks_to_zip.append('beverage')
 
-    for task_name in tasks_to_zip:
-        task_dir = output_path / task_name
-        if not task_dir.exists():
-            continue
+    # types 디렉토리 추가
+    if include_types and (temp_path / 'types').exists():
+        tasks_to_zip.append('types')
 
-        # ZIP 파일 경로
-        zip_filename = f"dataset_{task_name}_{timestamp}.zip"
-        zip_path = output_path / zip_filename
+    # 존재하는 디렉토리만 필터링
+    existing_tasks = [t for t in tasks_to_zip if (temp_path / t).exists()]
 
-        print(f"\nCreating {zip_filename}...")
+    if not existing_tasks:
+        return None
 
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+    # 하나의 ZIP 파일에 모든 데이터셋 포함
+    zip_filename = output_filename if output_filename else f"dataset_{timestamp}.zip"
+    zip_path = output_path / zip_filename
+
+    print(f"\nCreating {zip_filename}...")
+
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for task_name in existing_tasks:
+            task_dir = temp_path / task_name
+
             # task_dir 내의 모든 파일을 ZIP에 추가
             for file_path in task_dir.rglob('*'):
                 if file_path.is_file():
                     # ZIP 내부 경로를 task_name/class/filename 형식으로
-                    arcname = file_path.relative_to(output_path)
+                    arcname = file_path.relative_to(temp_path)
                     zipf.write(file_path, arcname)
 
-        zip_size = zip_path.stat().st_size / (1024 * 1024)  # MB
-        print(f"✅ Created: {zip_path.name} ({zip_size:.2f} MB)")
-        zip_files.append(str(zip_path))
+            print(f"  Added {task_name}/ directory")
 
-    return zip_files
+    zip_size = zip_path.stat().st_size / (1024 * 1024)  # MB
+    print(f"✅ Created: {zip_path.name} ({zip_size:.2f} MB)")
+
+    return str(zip_path)
 
 
 def main():
@@ -344,20 +456,26 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Create both reusable and beverage datasets
+  # Create both reusable and beverage datasets as ZIP
+  python convert_labelstudio_to_dataset.py export.json --image-dir ./images
+
+  # Include types/ directory for embeddings
+  python convert_labelstudio_to_dataset.py export.json --image-dir ./images --include-types
+
+  # Specify output directory
   python convert_labelstudio_to_dataset.py export.json --image-dir ./images --output-dir ./output
 
-  # Create datasets and save as ZIP files
-  python convert_labelstudio_to_dataset.py export.json --image-dir ./images --output-dir ./output --zip
+  # Specify output directory and file name
+  python convert_labelstudio_to_dataset.py export.json --image-dir ./images --output-dir ./output --output-file my_dataset.zip
 
   # Create only reusable dataset
   python convert_labelstudio_to_dataset.py export.json --image-dir ./images --task reusable
 
-  # Create only beverage dataset and ZIP it
-  python convert_labelstudio_to_dataset.py export.json --image-dir ./images --task beverage --zip
+  # Create only beverage dataset with types
+  python convert_labelstudio_to_dataset.py export.json --image-dir ./images --task beverage --include-types
 
-Output structure:
-  output_dir/
+Output:
+  dataset_YYYYMMDD_HHMMSS.zip (contains the following structure)
     reusable/
       reusable/       # Reusable container images (cropped)
       disposable/     # Disposable container images (cropped)
@@ -366,16 +484,20 @@ Output structure:
       with_beverage/  # Container with beverage images (cropped)
       empty/          # Empty container images (cropped)
       unclear/        # Unclear beverage status images (cropped)
-    dataset_reusable_YYYYMMDD_HHMMSS.zip  # If --zip is used
-    dataset_beverage_YYYYMMDD_HHMMSS.zip  # If --zip is used
+    types/            # Only if --include-types is used
+      CUP001/         # Cup code based classification (for embeddings)
+      CUP002/
+      ...
         """
     )
     parser.add_argument('json_file', help='Label Studio export JSON file')
     parser.add_argument('--image-dir', required=True, help='Directory containing original images')
-    parser.add_argument('--output-dir', default='./dataset_output', help='Output directory (default: ./dataset_output)')
+    parser.add_argument('--output-dir', default='.', help='Output directory for ZIP file (default: current directory)')
+    parser.add_argument('--output-file', help='Output ZIP file name (default: dataset_YYYYMMDD_HHMMSS.zip)')
     parser.add_argument('--task', choices=['reusable', 'beverage', 'both'],
                        default='both', help='Which dataset to create (default: both)')
-    parser.add_argument('--zip', action='store_true', help='Create ZIP archives of the datasets')
+    parser.add_argument('--include-types', action='store_true',
+                       help='Include types/ directory with cup_code-based classification for embeddings')
 
     args = parser.parse_args()
 
@@ -391,51 +513,71 @@ Output structure:
 
     print(f"\n✅ Found {len(results)} valid images with container bbox")
 
-    # 데이터셋 생성
-    if args.task in ['reusable', 'both']:
-        print("\n" + "="*60)
-        print("Creating Reusable/Disposable Classification Dataset")
-        print("="*60)
-        create_classification_dataset(results, args.output_dir, 'reusable', args.image_dir)
+    # 임시 디렉토리 생성
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
 
-    if args.task in ['beverage', 'both']:
-        print("\n" + "="*60)
-        print("Creating Beverage Status Classification Dataset")
-        print("="*60)
-        create_classification_dataset(results, args.output_dir, 'beverage', args.image_dir)
-
-    print("\n" + "="*60)
-    print("✅ Conversion complete!")
-    print("="*60)
-    print(f"\nOutput directory: {Path(args.output_dir).absolute()}")
-    print("\nDataset structure:")
-    output_path = Path(args.output_dir)
-    if args.task in ['reusable', 'both']:
-        print(f"  {output_path}/reusable/")
-        for class_name in ['reusable', 'disposable', 'unclear']:
-            count = len(list((output_path / 'reusable' / class_name).glob('*')))
-            print(f"    {class_name}/  ({count} images)")
-    if args.task in ['beverage', 'both']:
-        print(f"  {output_path}/beverage/")
-        for class_name in ['with_beverage', 'empty', 'unclear']:
-            count = len(list((output_path / 'beverage' / class_name).glob('*')))
-            print(f"    {class_name}/  ({count} images)")
-
-    # ZIP 파일 생성
-    if args.zip:
-        print("\n" + "="*60)
-        print("Creating ZIP archives...")
-        print("="*60)
-        zip_files = create_zip_archives(args.output_dir, args.task)
-
-        if zip_files:
+        # 데이터셋 생성 (임시 디렉토리에)
+        if args.task in ['reusable', 'both']:
             print("\n" + "="*60)
-            print("✅ ZIP archives created!")
+            print("Creating Reusable/Disposable Classification Dataset")
             print("="*60)
-            for zip_file in zip_files:
-                print(f"  📦 {zip_file}")
+            create_classification_dataset(results, temp_dir, 'reusable', args.image_dir)
+
+        if args.task in ['beverage', 'both']:
+            print("\n" + "="*60)
+            print("Creating Beverage Status Classification Dataset")
+            print("="*60)
+            create_classification_dataset(results, temp_dir, 'beverage', args.image_dir)
+
+        # 임베딩용 데이터셋 생성
+        if args.include_types:
+            print("\n" + "="*60)
+            print("Creating Embedding Dataset (Cup Code Classification)")
+            print("="*60)
+            create_embedding_dataset(results, temp_dir, args.image_dir)
+
+        print("\n" + "="*60)
+        print("Dataset creation complete!")
+        print("="*60)
+        print("\nDataset structure:")
+        if args.task in ['reusable', 'both']:
+            print(f"  reusable/")
+            for class_name in ['reusable', 'disposable', 'unclear']:
+                count = len(list((temp_path / 'reusable' / class_name).glob('*')))
+                print(f"    {class_name}/  ({count} images)")
+        if args.task in ['beverage', 'both']:
+            print(f"  beverage/")
+            for class_name in ['with_beverage', 'empty', 'unclear']:
+                count = len(list((temp_path / 'beverage' / class_name).glob('*')))
+                print(f"    {class_name}/  ({count} images)")
+        if args.include_types and (temp_path / 'types').exists():
+            print(f"  types/")
+            cup_codes = sorted([d.name for d in (temp_path / 'types').iterdir() if d.is_dir()])
+            for cup_code in cup_codes:
+                count = len(list((temp_path / 'types' / cup_code).glob('*')))
+                print(f"    {cup_code}/  ({count} images)")
+
+        # ZIP 파일 생성
+        print("\n" + "="*60)
+        print("Creating ZIP archive...")
+        print("="*60)
+
+        zip_file = create_zip_archive(
+            temp_dir,
+            args.output_dir,
+            args.output_file,
+            args.task,
+            args.include_types
+        )
+
+        if zip_file:
+            print("\n" + "="*60)
+            print("✅ ZIP archive created!")
+            print("="*60)
+            print(f"  📦 {zip_file}")
         else:
-            print("\n⚠️  No ZIP files created (no data to compress)")
+            print("\n⚠️  No ZIP file created (no data to compress)")
 
 
 if __name__ == '__main__':

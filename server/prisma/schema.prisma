@@ -50,7 +50,8 @@ model Place {
   exceptions   StoreOpeningHourException[]
   transactions PointTransaction[]
   state        PlaceStateType                        @default(PENDING)
-  brand        BrandType?
+  reportedBrand String?                              // 제보자가 입력한 서비스명 (자유 텍스트)
+  brand        BrandType?                            // 관리자가 승인 시 선택한 브랜드
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

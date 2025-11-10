@@ -12,6 +12,8 @@ export interface Place {
   }
   types: ('RENT' | 'RETURN' | 'BONUS' | 'CLEAN')[]
   contact?: string
+  reportedBrand?: string // 제보자가 입력한 서비스명
+  brand?: 'SUNHWA' | 'UTURN' // 관리자가 승인 시 선택한 브랜드
   openingHours: StoreOpeningHour[]
   exceptions: StoreOpeningHourException[]
   createdAt: string

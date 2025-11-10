@@ -14,6 +14,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [authError, setAuthError] = useState<string | null>(null)
+  const [selectedBrands, setSelectedBrands] = useState<{ [key: number]: string }>({})
 
   // 인증 확인
   useEffect(() => {
@@ -61,6 +62,7 @@ export default function AdminPage() {
     setIsAuthenticated(false)
     setInputCode('')
     setPendingPlaces([])
+    setSelectedBrands({})
   }
 
   const loadPendingPlaces = async () => {
@@ -84,10 +86,18 @@ export default function AdminPage() {
   }
 
   const handleActivate = async (placeId: number) => {
+    // reportedBrand가 있는 경우 brand 선택 확인
+    const place = pendingPlaces.find(p => p.id === placeId)
+    if (place?.reportedBrand && !selectedBrands[placeId]) {
+      alert('브랜드를 선택해주세요.')
+      return
+    }
+
     if (!confirm('이 장소를 승인하시겠습니까?')) return
 
     try {
-      await adminApi.activatePlace(placeId, adminCode)
+      const brand = selectedBrands[placeId]
+      await adminApi.activatePlace(placeId, adminCode, brand)
       // 목록 새로고침
       await loadPendingPlaces()
     } catch (err) {
@@ -115,6 +125,13 @@ export default function AdminPage() {
         alert('거부 처리 중 오류가 발생했습니다.')
       }
     }
+  }
+
+  const handleBrandChange = (placeId: number, brand: string) => {
+    setSelectedBrands(prev => ({
+      ...prev,
+      [placeId]: brand
+    }))
   }
 
   // 로그인 페이지
@@ -267,6 +284,12 @@ export default function AdminPage() {
                         {place.types.join(', ')}
                       </span>
                     </div>
+                    {place.reportedBrand && (
+                      <div className="col-span-2">
+                        <span className="text-gray-600">제보된 서비스명:</span>
+                        <span className="ml-2 font-semibold text-blue-600">{place.reportedBrand}</span>
+                      </div>
+                    )}
                     {place.contact && (
                       <div>
                         <span className="text-gray-600">연락처:</span>
@@ -282,6 +305,24 @@ export default function AdminPage() {
                       </div>
                     )}
                   </div>
+
+                  {/* 브랜드 선택 (reportedBrand가 있을 때만 표시) */}
+                  {place.reportedBrand && (
+                    <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        브랜드 선택 (승인 시 필수)
+                      </label>
+                      <select
+                        value={selectedBrands[place.id] || ''}
+                        onChange={(e) => handleBrandChange(place.id, e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">선택하세요</option>
+                        <option value="SUNHWA">선화</option>
+                        <option value="UTURN">유턴</option>
+                      </select>
+                    </div>
+                  )}
 
                   <div className="flex gap-3 pt-4 border-t border-gray-200">
                     <button
