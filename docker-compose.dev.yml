@@ -15,6 +15,11 @@ services:
     profiles:
       - production  # Only run in production
 
+  # Label Studio - Disabled in development
+  ai-label-studio:
+    profiles:
+      - production  # Only run in production
+
   # API - Development configuration
   api:
     build:

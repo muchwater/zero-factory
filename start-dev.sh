@@ -40,7 +40,6 @@ if [ $? -eq 0 ] && [[ "$COMMAND" == *"up"* ]]; then
     echo "  - Main Application: http://localhost"
     echo "  - API (direct): http://localhost:3000"
     echo "  - Web (direct): http://localhost:3001"
-    echo "  - Label Studio: http://localhost/label-studio"
     echo ""
     echo "To view logs: docker compose logs -f"
     echo "To stop: ./start-dev.sh down"
