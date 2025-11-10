@@ -15,6 +15,7 @@ interface FormData {
   contact: string
   opinion: string
   photos: File[]
+  serviceName: string // 서비스명 (리유저블 컨테이너/RVM일 때만 사용)
 }
 
 export default function PlaceForm({ onSubmit, isSubmitting = false }: PlaceFormProps) {
@@ -25,7 +26,8 @@ export default function PlaceForm({ onSubmit, isSubmitting = false }: PlaceFormP
     detailAddress: '',
     contact: '',
     opinion: '',
-    photos: []
+    photos: [],
+    serviceName: ''
   })
 
   const [addressSuggestions, setAddressSuggestions] = useState<any[]>([])
@@ -262,6 +264,20 @@ export default function PlaceForm({ onSubmit, isSubmitting = false }: PlaceFormP
 
         {/* 서비스 옵션 제거 - 시설 종류에 따라 자동 설정됨 */}
       </div>
+
+      {/* 서비스명 (리유저블 컨테이너 또는 RVM 선택 시만 표시) */}
+      {(formData.facilityType === 'reusable-container' || formData.facilityType === 'rvm') && (
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-black">서비스명</p>
+          <input
+            type="text"
+            value={formData.serviceName}
+            onChange={(e) => handleInputChange('serviceName', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="예: 선화, 유턴 등"
+          />
+        </div>
+      )}
 
       {/* 시설명 */}
       <div className="space-y-1">

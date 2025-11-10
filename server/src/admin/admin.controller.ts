@@ -5,6 +5,7 @@ import {
   Param,
   UseGuards,
   Logger,
+  Body,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiHeader } from '@nestjs/swagger';
 import { PlacesService } from '../places/places.service';
@@ -35,9 +36,12 @@ export class AdminController {
   @Put('places/:id/activate')
   @ApiOperation({ summary: 'Activate a pending place' })
   @ApiResponse({ status: 200, type: PlaceDto })
-  async activatePlace(@Param('id') id: string) {
-    this.logger.log(`✅ Activating place ID: ${id}`);
-    return this.placesService.updatePlaceStatus(Number(id), 'ACTIVE');
+  async activatePlace(
+    @Param('id') id: string,
+    @Body('brand') brand?: string,
+  ) {
+    this.logger.log(`✅ Activating place ID: ${id}${brand ? ` with brand: ${brand}` : ''}`);
+    return this.placesService.updatePlaceStatus(Number(id), 'ACTIVE', brand);
   }
 
   @Put('places/:id/reject')

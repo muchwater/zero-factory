@@ -164,6 +164,7 @@ export class PlacesService {
         category: createPlaceDto.category,
         types: createPlaceDto.types,
         contact: createPlaceDto.contact,
+        reportedBrand: createPlaceDto.reportedBrand,
       },
     });
 
@@ -192,11 +193,14 @@ export class PlacesService {
     });
   }
 
-  async updatePlaceStatus(id: number, state: 'ACTIVE' | 'INACTIVE') {
+  async updatePlaceStatus(id: number, state: 'ACTIVE' | 'INACTIVE', brand?: string) {
     this.logger.log(`🔄 Updating place ID ${id} state to ${state}`);
     await this.prisma.place.update({
       where: { id },
-      data: { state },
+      data: { 
+        state,
+        ...(brand && { brand: brand as any }), // brand가 제공된 경우에만 업데이트
+      },
     });
     this.logger.log(`✅ Successfully updated place ID ${id} state to ${state}`);
     return this.prisma.place.findUnique({

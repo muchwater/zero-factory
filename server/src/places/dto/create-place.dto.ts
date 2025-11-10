@@ -55,6 +55,11 @@ export class CreatePlaceDto {
   @IsString()
   contact?: string;
 
+  @ApiProperty({ description: '제보된 서비스명 (리유저블 컨테이너/RVM)', example: '선화', required: false })
+  @IsOptional()
+  @IsString()
+  reportedBrand?: string;
+
   @ApiProperty({ type: LocationDto, description: '위치 정보 (위도/경도)' })
   @ValidateNested()
   @Type(() => LocationDto)

@@ -79,6 +79,7 @@ export const placesApi = {
     types: string[]
     description?: string
     contact?: string
+    reportedBrand?: string
     coordinates: {
       lat: number
       lng: number
@@ -94,6 +95,7 @@ export const placesApi = {
         types: params.types,
         description: params.description,
         contact: params.contact,
+        reportedBrand: params.reportedBrand,
         location: params.coordinates,
       }),
     })
@@ -128,12 +130,13 @@ export const adminApi = {
   },
 
   // 장소 승인 (ACTIVE로 변경)
-  activatePlace: (id: number, adminCode: string): Promise<Place> => {
+  activatePlace: (id: number, adminCode: string, brand?: string): Promise<Place> => {
     return fetchApi<Place>(`/admin/places/${id}/activate`, {
       method: 'PUT',
       headers: {
         'x-admin-code': adminCode,
       },
+      ...(brand && { body: JSON.stringify({ brand }) }),
     })
   },
 
@@ -149,4 +152,5 @@ export const adminApi = {
 }
 
 export { ApiError }
+
 

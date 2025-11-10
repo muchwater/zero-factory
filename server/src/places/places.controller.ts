@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Query, Body, Logger, Put } from '@nestjs/common';
+import { Controller, Get, Post, Param, Query, Body, Logger, Put, Headers } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
 import { PlacesService } from './places.service';
 import { PlaceDto } from './dto/place.dto';
@@ -76,7 +76,11 @@ export class PlacesController {
   @Put('status/:id')
   @ApiOperation({ summary: '특정 장소 상태 업데이트' })
   @ApiResponse({ status: 200, type: PlaceDto })
-  async updatePlaceStatus(@Param('id') id: string, @Body('status') status: 'ACTIVE' | 'INACTIVE') {
-    return this.placesService.updatePlaceStatus(Number(id), status);
+  async updatePlaceStatus(
+    @Param('id') id: string, 
+    @Body('status') status: 'ACTIVE' | 'INACTIVE',
+    @Body('brand') brand?: string,
+  ) {
+    return this.placesService.updatePlaceStatus(Number(id), status, brand);
   }
 }
