@@ -2,6 +2,7 @@
 .env
 .env.local
 .env*.local
+.venv/*
 
 # Keep environment templates in git
 !.env.dev

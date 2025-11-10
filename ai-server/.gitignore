@@ -39,6 +39,7 @@ models/weights/*.bin
 # Data
 data/
 uploads/
+dataset_output/
 *.jpg
 *.jpeg
 *.png
