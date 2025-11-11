@@ -44,7 +44,7 @@ services:
       context: ./web
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: "http://localhost:3000"
+        NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL}"
         NEXT_PUBLIC_KAKAO_MAP_KEY: "${NEXT_PUBLIC_KAKAO_MAP_KEY}"
     volumes:
       # Enable hot-reload in development
@@ -52,7 +52,7 @@ services:
       - /app/node_modules
       - /app/.next
     environment:
-      NEXT_PUBLIC_API_URL: "http://localhost:3000"
+      NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL}"
       NEXT_PUBLIC_KAKAO_MAP_KEY: "${NEXT_PUBLIC_KAKAO_MAP_KEY}"
       NODE_ENV: development
     ports:
