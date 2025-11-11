@@ -37,7 +37,7 @@ models/weights/*.pt
 models/weights/*.bin
 
 # Data
-data/
+dataset*/
 uploads/
 dataset_output/
 *.jpg
