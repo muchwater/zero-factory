@@ -7,10 +7,11 @@ import {
   Logger,
   Body,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiHeader } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiHeader, ApiBody } from '@nestjs/swagger';
 import { PlacesService } from '../places/places.service';
 import { AdminCodeGuard } from './admin-code.guard';
 import { PlaceDto } from '../places/dto/place.dto';
+import { ActivatePlaceDto } from './dto/activate-place.dto';
 
 @ApiTags('admin')
 @Controller('admin')
@@ -34,12 +35,13 @@ export class AdminController {
   }
 
   @Put('places/:id/activate')
-  @ApiOperation({ summary: 'Activate a pending place' })
+  @ApiOperation({ summary: 'Activate a pending place (승인 시 브랜드 지정 가능)' })
   @ApiResponse({ status: 200, type: PlaceDto })
   async activatePlace(
     @Param('id') id: string,
-    @Body('brand') brand?: string,
+    @Body() body: ActivatePlaceDto,
   ) {
+    const brand = body.brand;
     this.logger.log(`✅ Activating place ID: ${id}${brand ? ` with brand: ${brand}` : ''}`);
     return this.placesService.updatePlaceStatus(Number(id), 'ACTIVE', brand);
   }

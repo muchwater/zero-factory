@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { PlaceStateType } from '@prisma/client';
+import { PlaceStateType, BrandType } from '@prisma/client';
 import { PlaceNearbyDto } from './dto/place-nearby.dto';
 import { CreatePlaceDto } from './dto/create-place.dto';
 import { getDayName, getWeekOfMonth } from '../common/day';
@@ -193,16 +193,24 @@ export class PlacesService {
     });
   }
 
-  async updatePlaceStatus(id: number, state: 'ACTIVE' | 'INACTIVE', brand?: string) {
-    this.logger.log(`🔄 Updating place ID ${id} state to ${state}`);
+  async updatePlaceStatus(id: number, state: 'ACTIVE' | 'INACTIVE', brand?: 'SUNHWA' | 'UTURN') {
+    this.logger.log(`🔄 Updating place ID ${id} - state: ${state}, brand: ${brand}`);
+    
+    const updateData: any = { state };
+    
+    // brand가 제공된 경우 BrandType enum으로 변환
+    if (brand) {
+      updateData.brand = brand as BrandType;
+      this.logger.log(`✅ Setting brand to: ${brand}`);
+    }
+    
     await this.prisma.place.update({
       where: { id },
-      data: { 
-        state,
-        ...(brand && { brand: brand as any }), // brand가 제공된 경우에만 업데이트
-      },
+      data: updateData,
     });
-    this.logger.log(`✅ Successfully updated place ID ${id} state to ${state}`);
+    
+    this.logger.log(`✅ Successfully updated place ID ${id}`);
+    
     return this.prisma.place.findUnique({
       where: { id },
       include: {

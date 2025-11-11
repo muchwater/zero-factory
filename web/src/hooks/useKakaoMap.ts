@@ -138,6 +138,18 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
     }
 
     switch (markerData.markerStyle) {
+      case 'brand-icon':
+        return {
+          ...baseStyle,
+          background: 'transparent',
+          border: 'none',
+          borderRadius: '50%',
+          width: '36px',
+          height: '36px',
+          padding: '0',
+          overflow: 'hidden',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+        }
       case 'blue-rect':
         return {
           ...baseStyle,
@@ -246,13 +258,19 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
         // 고유 ID 생성
         const markerId = `marker-${markerData.placeId || Math.random()}`
 
+        // 마커 컨텐츠 생성 (이미지 또는 이모지)
+        let markerContent = markerData.icon
+        if (markerData.imageUrl) {
+          markerContent = `<img src="${markerData.imageUrl}" alt="marker" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" />`
+        }
+
         // 커스텀 오버레이 생성
         const overlay = new window.kakao.maps.CustomOverlay({
           position: new window.kakao.maps.LatLng(markerData.lat, markerData.lng),
           content: `
             <div id="${markerId}" style="${styleString}; cursor: pointer;" class="marker-overlay" data-place-id="${markerData.placeId || ''}">
               ${plusIcon}
-              ${markerData.icon}
+              ${markerContent}
             </div>
           `,
           yAnchor: 1.2

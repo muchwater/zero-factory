@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { PlaceCategory, PlaceType } from '@prisma/client';
+import { PlaceCategory, PlaceType, BrandType } from '@prisma/client';
 import { StoreOpeningHourDto } from './store-opening-hour.dto';
 import { StoreOpeningHourExceptionDto } from './store-opening-hour-exception.dto';
 
@@ -33,6 +33,17 @@ export class PlaceDto {
 
   @ApiProperty({ description: '연락처 (Store 전용)', example: '010-1234-5678', required: false })
   contact?: string | null;
+
+  @ApiProperty({ description: '제보자가 입력한 서비스명 (자유 텍스트)', example: '선화점', required: false })
+  reportedBrand?: string | null;
+
+  @ApiProperty({ 
+    description: '관리자가 승인 시 선택한 브랜드 (SUNHWA / UTURN)', 
+    enum: BrandType,
+    example: 'SUNHWA',
+    required: false 
+  })
+  brand?: BrandType | null;
 
   @ApiProperty({ description: '생성 시각', example: '2025-02-01T09:00:00.000Z' })
   createdAt: Date;

@@ -4,6 +4,7 @@ import { PlacesService } from './places.service';
 import { PlaceDto } from './dto/place.dto';
 import { PlaceNearbyDto } from './dto/place-nearby.dto';
 import { CreatePlaceDto } from './dto/create-place.dto';
+import { UpdatePlaceStatusDto } from './dto/update-place-status.dto';
 
 @ApiTags('places')
 @Controller('places')
@@ -74,13 +75,16 @@ export class PlacesController {
   }
 
   @Put('status/:id')
-  @ApiOperation({ summary: '특정 장소 상태 업데이트' })
+  @ApiOperation({ summary: '특정 장소 상태 업데이트 (승인 시 브랜드 지정)' })
   @ApiResponse({ status: 200, type: PlaceDto })
   async updatePlaceStatus(
-    @Param('id') id: string, 
-    @Body('status') status: 'ACTIVE' | 'INACTIVE',
-    @Body('brand') brand?: string,
+    @Param('id') id: string,
+    @Body() body: UpdatePlaceStatusDto,
   ) {
+    // body 객체에서 status와 brand 추출 (폴백)
+    const status = (body as any)?.status as 'ACTIVE' | 'INACTIVE';
+    const brand = (body as any)?.brand as 'SUNHWA' | 'UTURN' | undefined;
+    this.logger.log(`🔄 PUT /places/status/${id} - status=${status}, brand=${brand}`);
     return this.placesService.updatePlaceStatus(Number(id), status, brand);
   }
 }

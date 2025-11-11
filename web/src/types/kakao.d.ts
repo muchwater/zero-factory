@@ -31,8 +31,9 @@ export interface MarkerData {
   lng: number
   title: string
   icon: string
+  imageUrl?: string // 브랜드 아이콘 이미지 URL
   type?: 'cafe' | 'recycling' | 'point' | 'wash' | 'return' | 'seonhwa' | 'station' | 'rent' | 'bonus' | 'clean' | 'default'
-  markerStyle?: 'blue-rect' | 'green-circle' | 'yellow-circle' | 'default'
+  markerStyle?: 'blue-rect' | 'green-circle' | 'yellow-circle' | 'default' | 'brand-icon'
   placeId?: number
   onClick?: () => void
 }

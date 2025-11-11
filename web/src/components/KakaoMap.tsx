@@ -35,8 +35,24 @@ export default function KakaoMap({
     if (!mapInstance || isLoading) return
 
     const placeMarkers: MarkerData[] = places.map((place) => {
-      // 장소 타입에 따른 아이콘과 스타일 결정
-      const getMarkerInfo = (types: string[]) => {
+      // 브랜드 또는 장소 타입에 따른 아이콘과 스타일 결정
+      const getMarkerInfo = (place: Place | PlaceNearby) => {
+        // 브랜드가 있는 경우 브랜드 아이콘 사용
+        if ('brand' in place && place.brand) {
+          const brandIcons: Record<string, string> = {
+            'SUNHWA': '/icons/sunhwa-icon.png',
+            'UTURN': '/icons/uturn-icon.png'
+          }
+          return { 
+            icon: '', 
+            imageUrl: brandIcons[place.brand] || '/icons/default.png',
+            style: 'brand-icon' as const, 
+            type: 'default' as const 
+          }
+        }
+
+        // 브랜드가 없는 경우 기존 로직 사용
+        const types = place.types
         if (types.includes('RETURN')) {
           return { icon: '♻️', style: 'green-circle' as const, type: 'return' as const }
         }
@@ -46,17 +62,18 @@ export default function KakaoMap({
         if (types.includes('CLEAN')) {
           return { icon: '🧼', style: 'green-circle' as const, type: 'clean' as const }
         }
-        // RENT이거나 types가 비어있으면 기본적으로 커피컵 아이콘 사용
-        return { icon: '☕', style: 'blue-rect' as const, type: 'rent' as const }
+        // RENT이거나 types가 비어있으면 기본 아이콘 사용
+        return { icon: '', imageUrl: '/icons/default.png', style: 'brand-icon' as const, type: 'rent' as const }
       }
 
-      const markerInfo = getMarkerInfo(place.types)
+      const markerInfo = getMarkerInfo(place)
       
       return {
         lat: place.location?.lat || 0,
         lng: place.location?.lng || 0,
         title: place.name,
         icon: markerInfo.icon,
+        imageUrl: markerInfo.imageUrl,
         type: markerInfo.type,
         markerStyle: markerInfo.style,
         placeId: place.id,

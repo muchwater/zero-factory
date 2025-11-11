@@ -1,6 +1,6 @@
 // src/places/dto/place-nearby.dto.ts
 import { ApiProperty } from '@nestjs/swagger';
-import { PlaceCategory, PlaceType } from '@prisma/client';
+import { PlaceCategory, PlaceType, BrandType } from '@prisma/client';
 
 export class PlaceNearbyDto {
   @ApiProperty({ description: '장소 ID', example: 1 })
@@ -9,8 +9,13 @@ export class PlaceNearbyDto {
   @ApiProperty({ description: '장소 이름', example: '제로웨이스트 카페' })
   name: string;
 
-  @ApiProperty({ description: '브랜드명', example: '스타벅스', required: false })
-  brand?: string | null;
+  @ApiProperty({ 
+    description: '브랜드 (SUNHWA / UTURN)', 
+    enum: BrandType,
+    example: 'SUNHWA', 
+    required: false 
+  })
+  brand?: BrandType | null;
 
   @ApiProperty({ description: '설명', example: '텀블러 대여/반납 가능', required: false })
   description?: string | null;

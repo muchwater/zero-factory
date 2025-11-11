@@ -1,10 +1,19 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app/app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 
 export async function createApp(): Promise<INestApplication> {
   const app = await NestFactory.create(AppModule);
+
+  // ValidationPipe 활성화 - DTO 변환 및 검증
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true, // DTO 클래스로 자동 변환
+      whitelist: true, // DTO에 없는 속성 제거
+      forbidNonWhitelisted: false, // 추가 속성이 있어도 오류 발생하지 않음
+    }),
+  );
 
   // CORS 활성화
   app.enableCors({

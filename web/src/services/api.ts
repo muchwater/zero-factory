@@ -139,12 +139,18 @@ export const adminApi = {
 
   // 장소 승인 (ACTIVE로 변경)
   activatePlace: (id: number, adminCode: string, brand?: string): Promise<Place> => {
+    const body: { brand?: string } = {}
+    if (brand) {
+      body.brand = brand
+    }
+    
     return fetchApi<Place>(`/admin/places/${id}/activate`, {
       method: 'PUT',
       headers: {
+        'Content-Type': 'application/json',
         'x-admin-code': adminCode,
       },
-      ...(brand && { body: JSON.stringify({ brand }) }),
+      body: JSON.stringify(body),
     })
   },
 
@@ -160,5 +166,6 @@ export const adminApi = {
 }
 
 export { ApiError }
+
 
 
