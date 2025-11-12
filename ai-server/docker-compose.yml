@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   ai-server:
     build:
@@ -110,6 +108,9 @@ services:
       - LABEL_STUDIO_PASSWORD=admin123
       - LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED=true
       - LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT=/label-studio/files
+      - CSRF_TRUSTED_ORIGINS=https://label.zeromap.store,https://*.zeromap.store
+      - LABEL_STUDIO_HOST=https://label.zeromap.store
+      - LABEL_STUDIO_DISABLE_SIGNUP_WITHOUT_LINK=true
 
     # 볼륨 마운트
     volumes:
