@@ -15,6 +15,7 @@ from pathlib import Path
 # 모델 import
 from models.reusable_classifier import ReusableClassifierInference
 from models.beverage_detector import BeverageDetectorInference
+from models.embedding_generator import EmbeddingGenerator
 
 # 환경 변수 로드
 load_dotenv()
@@ -37,7 +38,7 @@ app.add_middleware(
 # 전역 모델 인스턴스
 classifier: Optional[ReusableClassifierInference] = None
 beverage_detector: Optional[BeverageDetectorInference] = None
-embedding_generator = None  # TODO: 임베딩 모델은 추후 구현
+embedding_generator: Optional[EmbeddingGenerator] = None
 
 
 # Response Models
@@ -54,6 +55,13 @@ class EmbeddingResponse(BaseModel):
     """임베딩 벡터 응답"""
     embedding: List[float]
     dimension: int
+
+
+class ContainerMatchResponse(BaseModel):
+    """용기 매칭 응답"""
+    matches: List[dict]  # [{"cup_code": str, "similarity": float}, ...]
+    top_match: Optional[dict]
+    message: str
 
 
 class BeverageVerificationResponse(BaseModel):
@@ -81,6 +89,8 @@ async def startup_event():
     models_dir = Path("models/weights")
     classifier_path = models_dir / "reusable_classifier.pth"
     beverage_path = models_dir / "beverage_detector.pth"
+    siamese_path = models_dir / "siamese_network.pth"
+    embeddings_db_path = models_dir / "cup_code_embeddings_siamese.json"
 
     # Reusable Classifier 로드
     try:
@@ -111,8 +121,21 @@ async def startup_event():
     except Exception as e:
         print(f"❌ Failed to load beverage detector: {e}")
 
-    # TODO: Embedding Generator 로드
-    print("⚠️  Embedding generator not implemented yet")
+    # Siamese Network Embedding Generator 로드
+    try:
+        if siamese_path.exists():
+            embedding_generator = EmbeddingGenerator(
+                model_path=str(siamese_path),
+                embeddings_db_path=str(embeddings_db_path) if embeddings_db_path.exists() else None,
+                device=device,
+                embedding_dim=256
+            )
+            print("✅ Siamese Network embedding generator loaded")
+        else:
+            print(f"⚠️  Siamese Network not found at {siamese_path}")
+            print("   → Train model using notebooks/04_siamese_network_training.ipynb")
+    except Exception as e:
+        print(f"❌ Failed to load embedding generator: {e}")
 
     print("\n" + "="*60)
     print("✅ Server ready!")
@@ -184,18 +207,86 @@ async def classify_reusable(file: UploadFile = File(...)):
 @app.post("/generate-embedding", response_model=EmbeddingResponse)
 async def generate_embedding(file: UploadFile = File(...)):
     """
-    이미지 임베딩 벡터 생성 (512차원)
-    TODO: 실제 구현
+    Siamese Network를 사용한 이미지 임베딩 벡터 생성 (256차원)
+
+    업로드된 이미지에서 L2-normalized 256차원 임베딩 벡터를 추출합니다.
     """
+    if embedding_generator is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Embedding generator not loaded. Please train the Siamese Network model first."
+        )
+
     try:
-        # TODO: 실제 모델 추론
-        dummy_embedding = [0.0] * 512
+        # 이미지 읽기
+        image_bytes = await file.read()
+
+        # 임베딩 생성
+        embedding = embedding_generator.generate_embedding(image_bytes)
+
         return EmbeddingResponse(
-            embedding=dummy_embedding,
-            dimension=512
+            embedding=embedding.tolist(),
+            dimension=embedding_generator.get_embedding_dim()
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Embedding generation failed: {str(e)}")
+
+
+@app.post("/match-container", response_model=ContainerMatchResponse)
+async def match_container(
+    file: UploadFile = File(...),
+    threshold: float = 0.7,
+    top_k: int = 3
+):
+    """
+    이미지에서 용기 유형 매칭
+
+    업로드된 이미지를 데이터베이스의 등록된 용기들과 비교하여
+    가장 유사한 용기를 찾습니다.
+
+    Args:
+        file: 이미지 파일
+        threshold: 최소 유사도 임계값 (0.0 ~ 1.0, 기본값: 0.7)
+        top_k: 반환할 상위 매칭 개수 (기본값: 3)
+    """
+    if embedding_generator is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Embedding generator not loaded. Please train the Siamese Network model first."
+        )
+
+    try:
+        # 이미지 읽기
+        image_bytes = await file.read()
+
+        # 용기 매칭
+        matches = embedding_generator.match_container(
+            image_bytes,
+            threshold=threshold,
+            top_k=top_k
+        )
+
+        # 응답 생성
+        if matches:
+            matches_list = [
+                {"cup_code": cup_code, "similarity": float(similarity)}
+                for cup_code, similarity in matches
+            ]
+            top_match = matches_list[0]
+            message = f"✅ Matched to '{top_match['cup_code']}' with {top_match['similarity']:.1%} similarity"
+        else:
+            matches_list = []
+            top_match = None
+            message = f"❌ No matching container found (threshold: {threshold:.1%})"
+
+        return ContainerMatchResponse(
+            matches=matches_list,
+            top_match=top_match,
+            message=message
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Container matching failed: {str(e)}")
 
 
 @app.post("/verify-beverage", response_model=BeverageVerificationResponse)
