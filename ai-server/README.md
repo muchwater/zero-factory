@@ -15,13 +15,14 @@
 ## 개요
 
 ### 제공 기능
-1. **다회용기 분류**: 일회용기 vs 다회용기 구분
-2. **임베딩 생성**: 이미지를 512차원 벡터로 변환
-3. **음료 검증**: 다회용기에 음료가 담겨있는지 확인
+1. **객체 검출**: YOLO v8 기반 컵/뚜껑 위치 검출
+2. **다회용기 분류**: ResNet18 기반 일회용기 vs 다회용기 구분
+3. **임베딩 생성**: Siamese Network로 256차원 벡터 생성
+4. **음료 검증**: MobileNetV3 기반 음료 유무 확인
 
 ### 기술 스택
 - **프레임워크**: FastAPI
-- **모델**: PyTorch + Transformers (CLIP)
+- **모델**: PyTorch (YOLO, ResNet, Siamese Network, MobileNet)
 - **배포**: Docker + GPU 지원
 
 ---
@@ -209,11 +210,12 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 ### 학습 노트북
 
-`notebooks/` 디렉토리에 3개의 Jupyter Notebook:
+`notebooks/` 디렉토리에 Jupyter Notebook:
 
 1. **01_reusable_classifier.ipynb**: 다회용기 분류 모델
 2. **02_embedding_generator.ipynb**: CLIP 임베딩
 3. **03_beverage_detector.ipynb**: 음료 검증 모델
+4. **05_object_detection_cup_cropping.ipynb**: YOLO 객체 검출 (컵/뚜껑)
 
 ### Jupyter 실행
 
@@ -229,33 +231,180 @@ docker-compose up -d jupyter
 # http://localhost:8888 접속
 ```
 
-### 데이터 준비
+### YOLO 학습 (객체 검출)
 
-학습 데이터는 다음 구조로 준비:
+#### 1. 데이터셋 변환
 
+Label Studio에서 어노테이션한 데이터를 YOLO 포맷으로 변환:
+
+```bash
+# Label Studio JSON을 YOLO 데이터셋으로 변환
+python3 scripts/convert_labelstudio_to_yolo.py \
+  dataset/project-1-at-2025-11-12-05-32-de5d2a99.json \
+  --image-dir data/raw_images \
+  --output-dir data/yolo_dataset \
+  --split 0.8 0.1 0.1
+
+# container만 학습하려면 (lid 제외)
+python3 scripts/convert_labelstudio_to_yolo.py \
+  dataset/project-1-at-2025-11-12-05-32-de5d2a99.json \
+  --image-dir data/raw_images \
+  --output-dir data/yolo_dataset \
+  --classes container
 ```
-data/
-├── reusable_classification/
-│   ├── train/
-│   │   ├── reusable/     # 다회용기 이미지 (최소 500장)
-│   │   └── disposable/   # 일회용기 이미지 (최소 500장)
-│   └── val/
-│       ├── reusable/
-│       └── disposable/
-└── beverage_detection/
-    ├── train/
-    │   ├── with_beverage/    # 음료 있음 (최소 300장)
-    │   └── without_beverage/ # 음료 없음 (최소 300장)
-    └── val/
-        ├── with_beverage/
-        └── without_beverage/
+
+**출력 구조**:
+```
+data/yolo_dataset/
+├── data.yaml              # YOLO 설정 파일
+├── dataset_info.json      # 데이터셋 통계
+├── train/
+│   ├── images/           # 학습 이미지
+│   └── labels/           # YOLO 라벨 (.txt)
+├── val/
+│   ├── images/
+│   └── labels/
+└── test/
+    ├── images/
+    └── labels/
 ```
 
-### 학습 순서
+#### 2. YOLO 모델 학습
 
-1. **02_embedding_generator.ipynb** 먼저 실행 (사전학습 모델, 학습 불필요)
-2. **01_reusable_classifier.ipynb** 실행 (데이터 준비 후)
-3. **03_beverage_detector.ipynb** 실행 (데이터 준비 후)
+```bash
+# 기본 학습 (YOLOv8n, 100 epochs)
+python3 scripts/train_yolo.py --data data/yolo_dataset/data.yaml
+
+# 더 큰 모델 사용 (높은 정확도)
+python3 scripts/train_yolo.py \
+  --data data/yolo_dataset/data.yaml \
+  --model yolov8s.pt \
+  --epochs 200
+
+# 자동 배치 사이즈 (권장)
+python3 scripts/train_yolo.py \
+  --data data/yolo_dataset/data.yaml \
+  --batch -1
+
+# GPU 선택
+python3 scripts/train_yolo.py \
+  --data data/yolo_dataset/data.yaml \
+  --device 0
+
+# 학습 재개
+python3 scripts/train_yolo.py \
+  --resume runs/detect/cup_detection/weights/last.pt
+```
+
+**모델 크기 선택**:
+- `yolov8n.pt`: Nano (가장 빠름, 가벼움) - 추천
+- `yolov8s.pt`: Small (균형잡힌 성능)
+- `yolov8m.pt`: Medium (높은 정확도)
+- `yolov8l.pt`: Large (매우 높은 정확도)
+- `yolov8x.pt`: XLarge (최고 정확도, 느림)
+
+#### 3. 학습 결과 확인
+
+```bash
+# 학습 결과는 runs/detect/cup_detection/ 에 저장
+runs/detect/cup_detection/
+├── weights/
+│   ├── best.pt          # 최고 성능 모델
+│   └── last.pt          # 마지막 체크포인트
+├── results.csv          # 학습 메트릭
+├── results.png          # 학습 그래프
+├── confusion_matrix.png
+└── val_batch*.jpg       # 검증 이미지
+
+# 모델 검증
+python3 scripts/train_yolo.py \
+  --validate runs/detect/cup_detection/weights/best.pt \
+  --data data/yolo_dataset/data.yaml
+```
+
+### 분류 모델 학습
+
+#### 데이터 준비
+
+Label Studio 데이터를 분류 데이터셋으로 변환:
+
+```bash
+# 다회용기 분류 데이터셋 생성
+python3 scripts/convert_labelstudio_to_dataset.py \
+  dataset/project-1-at-2025-11-12-05-32-de5d2a99.json \
+  --image-dir data/raw_images \
+  --output-dir dataset_output \
+  --task reusable
+
+# 음료 검증 데이터셋 생성
+python3 scripts/convert_labelstudio_to_dataset.py \
+  dataset/project-1-at-2025-11-12-05-32-de5d2a99.json \
+  --image-dir data/raw_images \
+  --output-dir dataset_output \
+  --task beverage
+
+# 임베딩용 데이터셋 포함
+python3 scripts/convert_labelstudio_to_dataset.py \
+  dataset/project-1-at-2025-11-12-05-32-de5d2a99.json \
+  --image-dir data/raw_images \
+  --output-dir dataset_output \
+  --task both \
+  --include-types
+```
+
+**출력 구조**:
+```
+dataset_output/dataset_YYYYMMDD_HHMMSS.zip
+├── reusable/
+│   ├── reusable/         # 다회용기 (cropped)
+│   ├── disposable/       # 일회용기 (cropped)
+│   └── unclear/
+├── beverage/
+│   ├── with_beverage/    # 음료 있음 (cropped)
+│   ├── empty/            # 빈 용기 (cropped)
+│   └── unclear/
+└── types/                # 임베딩용 (--include-types 사용 시)
+    ├── CUP001/
+    ├── CUP002/
+    └── ...
+```
+
+#### 학습 순서
+
+##### Option 1: End-to-End 자동 학습 (권장)
+
+**00_end_to_end_training.ipynb** 실행 - 모든 모델을 순차적으로 학습
+
+```bash
+# Jupyter 실행
+jupyter lab notebooks/
+
+# 00_end_to_end_training.ipynb 열어서 셀 순차 실행
+```
+
+**학습 순서**:
+1. YOLO (객체 검출) → 30분
+2. Siamese Network (임베딩) → 20분
+3. ResNet (등록용 분류기) → 15분
+4. MobileNet (검증용 분류기) → 10분
+
+**총 예상 시간**: ~1.5시간 (GPU 기준)
+
+##### Option 2: 개별 모델 학습
+
+1. **YOLO 학습** (객체 검출 - container/lid 위치 찾기)
+   ```bash
+   python3 scripts/train_yolo.py --data data/yolo_dataset/data.yaml
+   ```
+
+2. **Siamese Network** 실행 (임베딩)
+   - `04_siamese_network_training.ipynb` 실행
+
+3. **ResNet/MobileNet** 실행 (다회용기 분류)
+   - `01_reusable_classifier.ipynb` 실행
+
+4. **음료 검증** (선택사항)
+   - `03_beverage_detector.ipynb` 실행
 
 학습된 모델은 `models/weights/`에 저장됩니다.
 

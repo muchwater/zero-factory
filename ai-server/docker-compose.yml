@@ -65,6 +65,7 @@ services:
       - ./models:/app/models
       - ./data:/app/data
       - ./utils:/app/utils
+      - ./runs:/app/runs  # YOLO 학습 결과 저장
 
     # Shared memory 크기 증가 (PyTorch DataLoader 멀티프로세싱용)
     shm_size: '2gb'

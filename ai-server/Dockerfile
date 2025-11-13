@@ -1,7 +1,7 @@
 # AI Model Server Dockerfile
 # GPU 지원 + Python 3.10 + PyTorch
 
-FROM nvidia/cuda:11.8.0-runtime-ubuntu22.04
+FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
 
 # 환경 변수 설정
 ENV DEBIAN_FRONTEND=noninteractive

@@ -31,13 +31,18 @@ ENV/
 .ipynb_checkpoints/
 
 # Model weights (큰 파일)
-models/weights/*.pth
-models/weights/*.onnx
-models/weights/*.pt
-models/weights/*.bin
+*.pth
+*.onnx
+*.pt
+*.bin
+weights/
 
 # Data
 dataset*/
+raw_images/
+yolo_dataset/
+cropped_cups/
+yolo
 uploads/
 dataset_output/
 *.jpg
