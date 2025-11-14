@@ -16,6 +16,7 @@ from pathlib import Path
 from models.reusable_classifier import ReusableClassifierInference
 from models.beverage_detector import BeverageDetectorInference
 from models.embedding_generator import EmbeddingGenerator
+from models.cup_detector import CupDetector
 
 # 환경 변수 로드
 load_dotenv()
@@ -39,51 +40,47 @@ app.add_middleware(
 classifier: Optional[ReusableClassifierInference] = None
 beverage_detector: Optional[BeverageDetectorInference] = None
 embedding_generator: Optional[EmbeddingGenerator] = None
+cup_detector: Optional[CupDetector] = None
 
 
 # Response Models
-class ClassificationResponse(BaseModel):
-    """일회용/다회용 분류 응답"""
+class TumblerRegistrationResponse(BaseModel):
+    """텀블러 등록 응답"""
+    success: bool
     is_reusable: bool
-    confidence: float
-    predicted_class: str
-    probabilities: dict
-    message: str
-
-
-class EmbeddingResponse(BaseModel):
-    """임베딩 벡터 응답"""
     embedding: List[float]
-    dimension: int
-
-
-class ContainerMatchResponse(BaseModel):
-    """용기 매칭 응답"""
-    matches: List[dict]  # [{"cup_code": str, "similarity": float}, ...]
-    top_match: Optional[dict]
     message: str
+    confidence: Optional[float] = None
+    error: Optional[str] = None
 
 
-class BeverageVerificationResponse(BaseModel):
-    """음료 검증 응답"""
+class UsageVerificationResponse(BaseModel):
+    """사용 검증 응답"""
+    success: bool
     has_beverage: bool
-    confidence: float
-    predicted_class: str
-    is_valid: bool
-    probabilities: dict
+    embedding: List[float]
     message: str
+    confidence: Optional[float] = None
+    error: Optional[str] = None
 
 
 @app.on_event("startup")
 async def startup_event():
     """서버 시작 시 모델 로딩"""
-    global classifier, embedding_generator, beverage_detector
+    global classifier, embedding_generator, beverage_detector, cup_detector
 
     print("🚀 AI Model Server Starting...")
 
     # 디바이스 설정
     device = os.getenv('DEVICE', 'cpu')
     print(f"Device: {device}")
+
+    # YOLO Cup Detector 로드
+    try:
+        cup_detector = CupDetector(model_name='yolov8n.pt', device=device)
+        print("✅ YOLO cup detector loaded")
+    except Exception as e:
+        print(f"❌ Failed to load cup detector: {e}")
 
     # 모델 파일 경로
     models_dir = Path("models/weights")
@@ -159,6 +156,7 @@ async def health_check():
         "status": "healthy",
         "device": os.getenv("DEVICE", "cpu"),
         "models_loaded": {
+            "cup_detector": cup_detector is not None,
             "classifier": classifier is not None,
             "embedding_generator": embedding_generator is not None,
             "beverage_detector": beverage_detector is not None,
@@ -166,168 +164,152 @@ async def health_check():
     }
 
 
-@app.post("/classify-reusable", response_model=ClassificationResponse)
-async def classify_reusable(file: UploadFile = File(...)):
+@app.post("/register-tumbler", response_model=TumblerRegistrationResponse)
+async def register_tumbler(file: UploadFile = File(...)):
     """
-    다회용기 vs 일회용기 분류
+    텀블러 등록 API
 
-    이미지를 업로드하면 다회용기인지 일회용기인지 분류합니다.
+    1) YOLO로 텀블러/컵 영역 자르기 (텀블러/컵이 없거나 2개 이상이면 실패)
+    2) 고성능 ResNet으로 다회용기 검증
+    3) Siamese로 임베딩 추출
+
+    Args:
+        file: 이미지 파일
+
+    Returns:
+        성공여부, 다회용기여부, 임베딩 벡터
     """
+    # 모델 체크
+    if cup_detector is None:
+        raise HTTPException(status_code=503, detail="Cup detector not loaded")
     if classifier is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Classifier model not loaded. Please train the model first."
-        )
-
-    try:
-        # 이미지 읽기
-        image_bytes = await file.read()
-
-        # 모델 추론
-        result = classifier.predict(image_bytes)
-
-        # 메시지 생성
-        if result['is_reusable']:
-            message = f"✅ Reusable container detected (confidence: {result['confidence']:.1%})"
-        else:
-            message = f"❌ Disposable container detected (confidence: {result['confidence']:.1%})"
-
-        return ClassificationResponse(
-            is_reusable=result['is_reusable'],
-            confidence=result['confidence'],
-            predicted_class=result['class'],
-            probabilities=result['probabilities'],
-            message=message
-        )
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Inference failed: {str(e)}")
-
-
-@app.post("/generate-embedding", response_model=EmbeddingResponse)
-async def generate_embedding(file: UploadFile = File(...)):
-    """
-    Siamese Network를 사용한 이미지 임베딩 벡터 생성 (256차원)
-
-    업로드된 이미지에서 L2-normalized 256차원 임베딩 벡터를 추출합니다.
-    """
+        raise HTTPException(status_code=503, detail="Reusable classifier not loaded")
     if embedding_generator is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Embedding generator not loaded. Please train the Siamese Network model first."
-        )
+        raise HTTPException(status_code=503, detail="Embedding generator not loaded")
 
     try:
         # 이미지 읽기
         image_bytes = await file.read()
 
-        # 임베딩 생성
-        embedding = embedding_generator.generate_embedding(image_bytes)
+        # Step 1: YOLO로 텀블러/컵 영역 감지 및 자르기
+        detection_result = cup_detector.detect(image_bytes)
 
-        return EmbeddingResponse(
+        if not detection_result['success']:
+            return TumblerRegistrationResponse(
+                success=False,
+                is_reusable=False,
+                embedding=[],
+                message=f"Detection failed: {detection_result['error']}",
+                error=detection_result['error']
+            )
+
+        # Cropped 이미지를 bytes로 변환
+        from io import BytesIO
+        cropped_image = detection_result['cropped_image']
+        buffer = BytesIO()
+        cropped_image.save(buffer, format='JPEG')
+        cropped_bytes = buffer.getvalue()
+
+        # Step 2: ResNet으로 다회용기 검증
+        classification_result = classifier.predict(cropped_bytes)
+
+        if not classification_result['is_reusable']:
+            return TumblerRegistrationResponse(
+                success=True,
+                is_reusable=False,
+                embedding=[],
+                message=f"Not a reusable container (confidence: {classification_result['confidence']:.1%})",
+                confidence=classification_result['confidence'],
+                error="Disposable container detected"
+            )
+
+        # Step 3: Siamese Network로 임베딩 추출
+        embedding = embedding_generator.generate_embedding(cropped_bytes)
+
+        return TumblerRegistrationResponse(
+            success=True,
+            is_reusable=True,
             embedding=embedding.tolist(),
-            dimension=embedding_generator.get_embedding_dim()
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Embedding generation failed: {str(e)}")
-
-
-@app.post("/match-container", response_model=ContainerMatchResponse)
-async def match_container(
-    file: UploadFile = File(...),
-    threshold: float = 0.7,
-    top_k: int = 3
-):
-    """
-    이미지에서 용기 유형 매칭
-
-    업로드된 이미지를 데이터베이스의 등록된 용기들과 비교하여
-    가장 유사한 용기를 찾습니다.
-
-    Args:
-        file: 이미지 파일
-        threshold: 최소 유사도 임계값 (0.0 ~ 1.0, 기본값: 0.7)
-        top_k: 반환할 상위 매칭 개수 (기본값: 3)
-    """
-    if embedding_generator is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Embedding generator not loaded. Please train the Siamese Network model first."
-        )
-
-    try:
-        # 이미지 읽기
-        image_bytes = await file.read()
-
-        # 용기 매칭
-        matches = embedding_generator.match_container(
-            image_bytes,
-            threshold=threshold,
-            top_k=top_k
-        )
-
-        # 응답 생성
-        if matches:
-            matches_list = [
-                {"cup_code": cup_code, "similarity": float(similarity)}
-                for cup_code, similarity in matches
-            ]
-            top_match = matches_list[0]
-            message = f"✅ Matched to '{top_match['cup_code']}' with {top_match['similarity']:.1%} similarity"
-        else:
-            matches_list = []
-            top_match = None
-            message = f"❌ No matching container found (threshold: {threshold:.1%})"
-
-        return ContainerMatchResponse(
-            matches=matches_list,
-            top_match=top_match,
-            message=message
+            message=f"Reusable tumbler registered successfully (confidence: {classification_result['confidence']:.1%})",
+            confidence=classification_result['confidence']
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Container matching failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
 
 
-@app.post("/verify-beverage", response_model=BeverageVerificationResponse)
-async def verify_beverage(
-    file: UploadFile = File(...),
-    confidence_threshold: float = 0.7
-):
+@app.post("/verify-usage", response_model=UsageVerificationResponse)
+async def verify_usage(file: UploadFile = File(...)):
     """
-    음료 포함 여부 검증
+    사용 검증 API
 
-    다회용기에 음료가 담겨있는지 확인합니다.
-    사용 인증 시 활용할 수 있습니다.
+    1) YOLO로 텀블러/컵 영역 자르기 (텀블러/컵이 없거나 2개 이상이면 실패)
+    2) 속도빠른 MobileNet으로 음료 검증
+    3) Siamese로 임베딩 추출
 
     Args:
         file: 이미지 파일
-        confidence_threshold: 신뢰도 임계값 (기본 0.7)
+
+    Returns:
+        성공여부, 음료여부, 임베딩 벡터
     """
+    # 모델 체크
+    if cup_detector is None:
+        raise HTTPException(status_code=503, detail="Cup detector not loaded")
     if beverage_detector is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Beverage detector model not loaded. Please train the model first."
-        )
+        raise HTTPException(status_code=503, detail="Beverage detector not loaded")
+    if embedding_generator is None:
+        raise HTTPException(status_code=503, detail="Embedding generator not loaded")
 
     try:
         # 이미지 읽기
         image_bytes = await file.read()
 
-        # 모델 추론
-        result = beverage_detector.predict(image_bytes, confidence_threshold)
+        # Step 1: YOLO로 텀블러/컵 영역 감지 및 자르기
+        detection_result = cup_detector.detect(image_bytes)
 
-        return BeverageVerificationResponse(
-            has_beverage=result['has_beverage'],
-            confidence=result['confidence'],
-            predicted_class=result['class'],
-            is_valid=result['is_valid'],
-            probabilities=result['probabilities'],
-            message=result['message']
+        if not detection_result['success']:
+            return UsageVerificationResponse(
+                success=False,
+                has_beverage=False,
+                embedding=[],
+                message=f"Detection failed: {detection_result['error']}",
+                error=detection_result['error']
+            )
+
+        # Cropped 이미지를 bytes로 변환
+        from io import BytesIO
+        cropped_image = detection_result['cropped_image']
+        buffer = BytesIO()
+        cropped_image.save(buffer, format='JPEG')
+        cropped_bytes = buffer.getvalue()
+
+        # Step 2: MobileNet으로 음료 검증
+        beverage_result = beverage_detector.predict(cropped_bytes, confidence_threshold=0.6)
+
+        if not beverage_result['has_beverage']:
+            return UsageVerificationResponse(
+                success=True,
+                has_beverage=False,
+                embedding=[],
+                message=f"No beverage detected: {beverage_result['message']}",
+                confidence=beverage_result['confidence'],
+                error="No beverage in container"
+            )
+
+        # Step 3: Siamese Network로 임베딩 추출
+        embedding = embedding_generator.generate_embedding(cropped_bytes)
+
+        return UsageVerificationResponse(
+            success=True,
+            has_beverage=True,
+            embedding=embedding.tolist(),
+            message=f"Usage verified with beverage (confidence: {beverage_result['confidence']:.1%})",
+            confidence=beverage_result['confidence']
         )
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Inference failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Verification failed: {str(e)}")
 
 
 if __name__ == "__main__":

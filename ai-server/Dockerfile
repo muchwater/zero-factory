@@ -28,9 +28,16 @@ WORKDIR /app
 # pip 업그레이드
 RUN python -m pip install --upgrade pip
 
-# Python 패키지 설치
+# Python 패키지 설치 (레이어 분리 및 타임아웃 설정)
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+
+# 무거운 패키지들 먼저 설치 (타임아웃 증가)
+RUN pip install --default-timeout=1000 --no-cache-dir \
+    torch==2.1.2 \
+    torchvision==0.16.2
+
+# 나머지 패키지 설치
+RUN pip install --default-timeout=1000 --no-cache-dir -r requirements.txt
 
 # 애플리케이션 코드 복사
 COPY . .

@@ -5,13 +5,17 @@ fastapi==0.109.0
 uvicorn[standard]==0.27.0
 python-multipart==0.0.6
 
-# Deep Learning
-torch==2.1.2
-torchvision==0.16.2
+# Deep Learning (이미 Dockerfile에서 설치됨)
+# torch==2.1.2
+# torchvision==0.16.2
 
 # Image Processing
 Pillow==10.2.0
 opencv-python==4.9.0.80
+pillow-heif>=0.13.0  # HEIC/HEIF 포맷 지원
+
+# Object Detection
+ultralytics==8.3.227
 
 # Scientific Computing
 numpy==1.26.3
@@ -21,20 +25,9 @@ scipy==1.12.0
 python-dotenv==1.0.0
 pydantic==2.5.3
 
-# Jupyter (모델 학습용)
-jupyter==1.0.0
-jupyterlab==4.0.10
-notebook==7.0.6
-
-# 시각화 및 분석
+# 시각화 및 분석 (서버에는 불필요)
 matplotlib==3.8.2
-seaborn==0.13.1
-scikit-learn==1.3.2
 tqdm==4.66.1
-
-# ONNX (모델 최적화, 선택사항)
-onnx==1.15.0
-onnxruntime-gpu==1.16.3
 
 # 참고: GPU 버전 PyTorch 설치
 # pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
