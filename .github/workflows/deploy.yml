@@ -26,10 +26,10 @@ jobs:
             echo "📥 Pulling latest code from GitHub..."
             git pull origin main
 
-            echo "🔨 Building Docker containers..."
+            echo "🔨 Building main services Docker containers..."
             docker compose build
 
-            echo "🚀 Restarting services..."
+            echo "🚀 Restarting main services..."
             docker compose up -d --force-recreate
 
             echo "🤖 Building AI Server containers..."
@@ -38,21 +38,35 @@ jobs:
             docker compose up -d --force-recreate
             cd ..
 
-            echo "⏳ Waiting for services to start..."
-            sleep 10
+            echo "🔄 Restarting nginx to apply latest configuration..."
+            docker restart nginx
+
+            echo "⏳ Waiting for services to stabilize..."
+            sleep 15
 
             echo "🔍 Checking service health..."
+            echo "Main services:"
             docker compose ps
+            echo ""
+            echo "AI services:"
             cd ai-server && docker compose ps && cd ..
+            echo ""
 
-            echo "✅ Checking API health endpoint..."
-            curl -f http://localhost:3000/health || echo "⚠️  API health check failed"
+            echo "✅ Checking nginx configuration..."
+            docker exec nginx nginx -t || echo "⚠️  Nginx configuration test failed"
 
-            echo "✅ Checking AI Server health endpoint..."
-            curl -f http://localhost:8000/health || echo "⚠️  AI Server health check failed"
+            echo "✅ Checking API health endpoint (internal)..."
+            docker exec zero-factory-api-1 wget -q -O- http://localhost:3000/health || echo "⚠️  API health check failed"
 
-            echo "✅ Checking Label Studio..."
-            curl -f http://localhost:8080/ || echo "⚠️  Label Studio health check failed"
+            echo "✅ Checking AI Server health endpoint (internal)..."
+            docker exec ai-model-server wget -q -O- http://localhost:8000/ || echo "⚠️  AI Server health check failed"
+
+            echo "✅ Checking Label Studio (internal)..."
+            docker exec ai-label-studio wget -q -O- http://localhost:8080/ || echo "⚠️  Label Studio health check failed"
+
+            echo "✅ Checking public HTTPS endpoints..."
+            curl -k -f https://localhost/ || echo "⚠️  Main site HTTPS check failed"
+            curl -k -f https://localhost/api/health || echo "⚠️  API via nginx check failed"
 
             echo "🎉 Deployment completed!"
 

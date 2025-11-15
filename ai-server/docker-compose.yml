@@ -6,9 +6,9 @@ services:
     container_name: ai-model-server
     restart: unless-stopped
 
-    # 포트 매핑
-    ports:
-      - "8000:8000"
+    # 포트 노출 (nginx를 통해서만 접근)
+    expose:
+      - "8000"
 
     # 환경 변수
     environment:
@@ -99,9 +99,9 @@ services:
     container_name: ai-label-studio
     restart: unless-stopped
 
-    # 포트 매핑
-    ports:
-      - "8080:8080"
+    # 포트 노출 (nginx를 통해서만 접근)
+    expose:
+      - "8080"
 
     # 환경 변수
     environment:
@@ -121,13 +121,10 @@ services:
     # 네트워크
     networks:
       - ai-network
-      - zero-factory_app-network
 
 networks:
   ai-network:
     driver: bridge
-  zero-factory_app-network:
-    external: true
 
 volumes:
   models:

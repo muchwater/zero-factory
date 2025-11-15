@@ -19,6 +19,7 @@ services:
       - "443:443"
     networks:
       - app-network
+      - ai-network
 
   certbot:
     image: certbot/certbot
@@ -67,3 +68,6 @@ services:
 networks:
   app-network:
     driver: bridge
+  ai-network:
+    external: true
+    name: ai-server_ai-network
