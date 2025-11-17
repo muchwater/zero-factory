@@ -34,6 +34,7 @@ services:
     # 네트워크
     networks:
       - ai-network
+      - zero-factory_app-network
 
   # Jupyter Notebook 서버
   jupyter:
@@ -77,6 +78,8 @@ services:
 networks:
   ai-network:
     driver: bridge
+  zero-factory_app-network:
+    external: true
 
 volumes:
   models:
