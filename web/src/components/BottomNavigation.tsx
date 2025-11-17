@@ -11,7 +11,7 @@ export default function BottomNavigation({ activeTab, onTabChange }: BottomNavig
   const tabs = [
     {
       id: 'search' as const,
-      label: '검색',
+      label: '제로영수증',
       icon: ListIcon,
     },
     {

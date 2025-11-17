@@ -133,6 +133,16 @@ export default function Home() {
     router.push('/add-place')
   }
 
+  const handleTabChange = (tab: 'home' | 'search' | 'profile') => {
+    setActiveTab(tab)
+    if (tab === 'search') {
+      router.push('/zero-receipt')
+    } else if (tab === 'profile') {
+      // 프로필 페이지로 이동 (필요시 추가)
+      // router.push('/profile')
+    }
+  }
+
   return (
     <div className="bg-background min-h-screen flex flex-col pb-20">
       {/* Header */}
@@ -250,7 +260,7 @@ export default function Home() {
       {/* Bottom Navigation */}
       <BottomNavigation 
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
       />
     </div>
   )
