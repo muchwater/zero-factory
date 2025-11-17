@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import BottomNavigation from '@/components/BottomNavigation'
 
-export default function ZeroReceiptPage() {
+// useSearchParams를 사용하는 컴포넌트를 분리
+function ZeroReceiptContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState<'home' | 'search' | 'profile'>('search')
@@ -179,11 +180,31 @@ export default function ZeroReceiptPage() {
       </div>
 
       {/* Bottom Navigation */}
-      <BottomNavigation 
+      <BottomNavigation
         activeTab={activeTab}
         onTabChange={handleTabChange}
       />
     </div>
+  )
+}
+
+// Suspense로 감싼 메인 컴포넌트
+export default function ZeroReceiptPage() {
+  return (
+    <Suspense fallback={
+      <div className="bg-background min-h-screen flex flex-col pb-20">
+        <div className="bg-white border-b border-border sticky top-0 z-40">
+          <div className="px-4 py-3">
+            <h1 className="text-xl font-bold text-black text-center">제로영수증</h1>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-muted">로딩 중...</div>
+        </div>
+      </div>
+    }>
+      <ZeroReceiptContent />
+    </Suspense>
   )
 }
 
