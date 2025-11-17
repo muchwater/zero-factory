@@ -45,10 +45,6 @@ cropped_cups/
 yolo
 uploads/
 dataset_output/
-*.jpg
-*.jpeg
-*.png
-*.gif
 
 # Label Studio
 label-studio/data/
