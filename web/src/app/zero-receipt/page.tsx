@@ -1,14 +1,31 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import BottomNavigation from '@/components/BottomNavigation'
 
 export default function ZeroReceiptPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState<'home' | 'search' | 'profile'>('search')
   const [productDescription, setProductDescription] = useState('')
   const [photo, setPhoto] = useState<File | null>(null)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+
+  // URL에서 사진 데이터 받기
+  useEffect(() => {
+    const photoData = searchParams.get('photo')
+    if (photoData) {
+      setPhotoPreview(photoData)
+      // Data URL을 File 객체로 변환
+      fetch(photoData)
+        .then(res => res.blob())
+        .then(blob => {
+          const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' })
+          setPhoto(file)
+        })
+    }
+  }, [searchParams])
 
   const handleTabChange = (tab: 'home' | 'search' | 'profile') => {
     setActiveTab(tab)
@@ -24,7 +41,16 @@ export default function ZeroReceiptPage() {
     const file = e.target.files?.[0]
     if (file) {
       setPhoto(file)
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
     }
+  }
+
+  const handleCameraClick = () => {
+    router.push('/zero-receipt/camera')
   }
 
   const handleSubmit = () => {
@@ -70,43 +96,67 @@ export default function ZeroReceiptPage() {
           <label className="block text-sm font-medium text-foreground mb-2">
             Step 2: 증빙을 위한 사진을 촬영해주세요.
           </label>
-          <label className="block w-full h-32 border-2 border-dashed border-gray-300 rounded-md flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-colors">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handlePhotoUpload}
-              className="hidden"
-            />
-            {photo ? (
-              <div className="text-center">
-                <p className="text-sm text-foreground">✓ 사진이 선택되었습니다</p>
-                <p className="text-xs text-muted mt-1">{photo.name}</p>
-              </div>
-            ) : (
-              <div className="text-center">
-                <svg
-                  className="w-6 h-6 text-muted mx-auto mb-2"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+          <div className="space-y-2">
+            {/* Camera Button */}
+            <button
+              onClick={handleCameraClick}
+              className="block w-full h-32 border-2 border-dashed border-primary rounded-md flex flex-col items-center justify-center cursor-pointer hover:border-primary-dark transition-colors bg-primary/5"
+            >
+              <svg
+                className="w-8 h-8 text-primary mx-auto mb-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+              <p className="text-sm font-medium text-primary">Tap to upload photo</p>
+            </button>
+
+            {/* Photo Preview */}
+            {photoPreview && (
+              <div className="relative">
+                <img
+                  src={photoPreview}
+                  alt="Preview"
+                  className="w-full h-48 object-cover rounded-md border border-gray-300"
+                />
+                <button
+                  onClick={() => {
+                    setPhoto(null)
+                    setPhotoPreview(null)
+                  }}
+                  className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-red-600"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
-                <p className="text-sm text-muted">Tap to upload photo</p>
+                  ×
+                </button>
               </div>
             )}
-          </label>
+
+            {/* Alternative: File Upload */}
+            <label className="block w-full text-center">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoUpload}
+                className="hidden"
+              />
+              <span className="text-xs text-muted underline cursor-pointer">
+                또는 파일에서 선택
+              </span>
+            </label>
+          </div>
         </div>
 
         {/* Submit Button */}
