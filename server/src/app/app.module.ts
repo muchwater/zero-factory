@@ -5,8 +5,9 @@ import { PlacesModule } from '../places/places.module';
 import { MembersModule } from '../members/members.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AdminModule } from '../admin/admin.module';
+import { PointsModule } from '../points/points.module';
 @Module({
-  imports: [ConfigModule, PlacesModule, MembersModule, PrismaModule, AdminModule],
+  imports: [ConfigModule, PlacesModule, MembersModule, PrismaModule, AdminModule, PointsModule],
   controllers: [AppController],
   providers: [],
 })

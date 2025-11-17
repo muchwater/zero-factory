@@ -12,7 +12,7 @@ export class MembersController {
   @Post()
   @ApiOperation({
     summary: '멤버 생성/조회',
-    description: 'deviceId로 멤버를 찾거나 없으면 새로 생성합니다.',
+    description: 'nickname으로 멤버를 찾거나 없으면 새로 생성합니다.',
   })
   @ApiResponse({ status: 201, description: '멤버가 생성되거나 조회됨.', type: MemberResponseDto })
   async findOrCreate(@Body() dto: CreateMemberDto): Promise<MemberResponseDto> {

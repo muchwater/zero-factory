@@ -38,20 +38,20 @@ enum BrandType {
 }
 
 model Place {
-  id           Int                                   @id @default(autoincrement())
-  name         String
-  description  String?
-  address      String
-  category     PlaceCategory
-  location     Unsupported("geography(Point,4326)")?
-  types        PlaceType[]
-  contact      String?
-  openingHours StoreOpeningHour[]
-  exceptions   StoreOpeningHourException[]
-  transactions PointTransaction[]
-  state        PlaceStateType                        @default(PENDING)
-  reportedBrand String?                              // 제보자가 입력한 서비스명 (자유 텍스트)
-  brand        BrandType?                            // 관리자가 승인 시 선택한 브랜드
+  id            Int                                   @id @default(autoincrement())
+  name          String
+  description   String?
+  address       String
+  category      PlaceCategory
+  location      Unsupported("geography(Point,4326)")?
+  types         PlaceType[]
+  contact       String?
+  openingHours  StoreOpeningHour[]
+  exceptions    StoreOpeningHourException[]
+  transactions  PointTransaction[]
+  state         PlaceStateType                        @default(PENDING)
+  reportedBrand String? // 제보자가 입력한 서비스명 (자유 텍스트)
+  brand         BrandType? // 관리자가 승인 시 선택한 브랜드
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -91,6 +91,8 @@ model Member {
   createdAt    DateTime @default(now())
 
   transactions PointTransaction[]
+
+  pointLogs PointLog[]
 }
 
 model PointTransaction {
@@ -102,4 +104,14 @@ model PointTransaction {
   amount    Int
   type      TransactionType
   createdAt DateTime        @default(now())
+}
+
+model PointLog {
+  id             Int    @id @default(autoincrement())
+  member         Member @relation(fields: [memberId], references: [id])
+  memberId       String
+  sumBalance     Int
+  yearMonth      String // YYYYMM 형식
+  earnedPoints   Int    @default(0)
+  redeemedPoints Int    @default(0)
 }
