@@ -38,6 +38,8 @@ ENV/
 weights/
 
 # Data
+data/
+data_preprocessed/
 dataset*/
 raw_images/
 yolo_dataset/

@@ -93,34 +93,6 @@ services:
     networks:
       - ai-network
 
-  # Label Studio - 데이터셋 어노테이션 툴
-  label-studio:
-    image: heartexlabs/label-studio:latest
-    container_name: ai-label-studio
-    restart: unless-stopped
-
-    # 포트 노출 (nginx를 통해서만 접근)
-    expose:
-      - "8080"
-
-    # 환경 변수
-    environment:
-      - LABEL_STUDIO_USERNAME=admin@example.com
-      - LABEL_STUDIO_PASSWORD=admin123
-      - LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED=true
-      - LABEL_STUDIO_LOCAL_FILES_DOCUMENT_ROOT=/label-studio/files
-      - CSRF_TRUSTED_ORIGINS=https://label.zeromap.store,https://*.zeromap.store
-      - LABEL_STUDIO_HOST=https://label.zeromap.store
-      - LABEL_STUDIO_DISABLE_SIGNUP_WITHOUT_LINK=true
-
-    # 볼륨 마운트
-    volumes:
-      - ./label-studio/data:/label-studio/data
-      - ./data:/label-studio/files:ro
-
-    # 네트워크
-    networks:
-      - ai-network
 
 networks:
   ai-network:

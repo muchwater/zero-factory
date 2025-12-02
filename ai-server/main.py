@@ -1,135 +1,117 @@
 """
-AI Model Server for Reusable Container Verification
-FastAPI 서버 - 다회용기 검증 AI 서비스
+AI Model Server - FastAPI Application
+Container verification API with YOLO detection, reusable classification, and beverage detection
 """
 
+import os
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
-from typing import Optional
-import os
-from dotenv import load_dotenv
-from pathlib import Path
+import torch
 
-# 모델 import
-from models.reusable_classifier import ReusableClassifierInference
-from models.beverage_detector import BeverageDetectorInference
-from models.embedding_generator import EmbeddingGenerator
-from models.cup_detector import CupDetector
+# 환경 변수
+DEVICE = os.getenv('DEVICE', 'cuda' if torch.cuda.is_available() else 'cpu')
+MODEL_DIR = Path('/app/models/weights')
 
-# 라우터 import
-from routes import health_router, tumbler_router
+# 글로벌 모델 변수
+container_detector = None
+reusable_classifier = None
+beverage_detector = None
 
-# 환경 변수 로드
-load_dotenv()
-
+# FastAPI 앱 생성
 app = FastAPI(
-    title="Reusable Container AI Service",
-    description="AI 기반 다회용기 검증 서비스",
-    version="0.2.0"
+    title="Container Verification API",
+    description="AI-powered container verification: detection → reusable classification → beverage detection",
+    version="1.0.0"
 )
 
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # TODO: 프로덕션에서는 특정 도메인만 허용
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 라우터 등록
-app.include_router(health_router)
-app.include_router(tumbler_router)
-
-# 전역 모델 인스턴스
-classifier: Optional[ReusableClassifierInference] = None
-beverage_detector: Optional[BeverageDetectorInference] = None
-embedding_generator: Optional[EmbeddingGenerator] = None
-cup_detector: Optional[CupDetector] = None
-
 
 @app.on_event("startup")
-async def startup_event():
-    """서버 시작 시 모델 로딩"""
-    global classifier, embedding_generator, beverage_detector, cup_detector
+async def load_models():
+    """서버 시작 시 모델 로드"""
+    global container_detector, reusable_classifier, beverage_detector
 
-    print("🚀 AI Model Server Starting...")
-
-    # 디바이스 설정
-    device = os.getenv('DEVICE', 'cpu')
-    print(f"Device: {device}")
-
-    # YOLO Cup Detector 로드
-    try:
-        cup_detector = CupDetector(model_name='yolov8n.pt', device=device)
-        print("✅ YOLO cup detector loaded")
-    except Exception as e:
-        print(f"❌ Failed to load cup detector: {e}")
-
-    # 모델 파일 경로
-    models_dir = Path("models/weights")
-    classifier_path = models_dir / "reusable_classifier.pth"
-    beverage_path = models_dir / "beverage_detector.pth"
-    siamese_path = models_dir / "siamese_network.pth"
-    embeddings_db_path = models_dir / "cup_code_embeddings_siamese.json"
-
-    # Reusable Classifier 로드
-    try:
-        if classifier_path.exists():
-            classifier = ReusableClassifierInference(
-                model_path=str(classifier_path),
-                device=device
-            )
-            print("✅ Reusable classifier loaded")
-        else:
-            print(f"⚠️  Reusable classifier not found at {classifier_path}")
-            print("   → Train model using notebooks/01_reusable_classifier.ipynb")
-    except Exception as e:
-        print(f"❌ Failed to load reusable classifier: {e}")
-
-    # Beverage Detector 로드
-    try:
-        if beverage_path.exists():
-            beverage_detector = BeverageDetectorInference(
-                model_path=str(beverage_path),
-                device=device,
-                num_classes=3  # with_beverage, empty, unclear
-            )
-            print("✅ Beverage detector loaded")
-        else:
-            print(f"⚠️  Beverage detector not found at {beverage_path}")
-            print("   → Train model using notebooks/03_beverage_detector.ipynb")
-    except Exception as e:
-        print(f"❌ Failed to load beverage detector: {e}")
-
-    # Siamese Network Embedding Generator 로드
-    try:
-        if siamese_path.exists():
-            embedding_generator = EmbeddingGenerator(
-                model_path=str(siamese_path),
-                embeddings_db_path=str(embeddings_db_path) if embeddings_db_path.exists() else None,
-                device=device,
-                embedding_dim=256
-            )
-            print("✅ Siamese Network embedding generator loaded")
-        else:
-            print(f"⚠️  Siamese Network not found at {siamese_path}")
-            print("   → Train model using notebooks/04_siamese_network_training.ipynb")
-    except Exception as e:
-        print(f"❌ Failed to load embedding generator: {e}")
-
-    print("\n" + "="*60)
-    print("✅ Server ready!")
     print("="*60)
+    print("Loading AI Models...")
+    print("="*60)
+    print(f"Device: {DEVICE}")
+    print(f"Model directory: {MODEL_DIR}")
+
+    try:
+        # 1. Container Detector (YOLO)
+        from models.container_detector import ContainerDetector
+        container_detector = ContainerDetector(
+            model_path='yolov8n.pt',
+            confidence_threshold=0.25,
+            device=DEVICE
+        )
+
+        # 2. Reusable Classifier
+        reusable_model_path = MODEL_DIR / 'reusable_classifier_best.pth'
+        if reusable_model_path.exists():
+            from models.reusable_classifier_model import ReusableClassifierPredictor
+            reusable_classifier = ReusableClassifierPredictor(
+                model_path=str(reusable_model_path),
+                device=DEVICE
+            )
+        else:
+            print(f"⚠️  Reusable classifier not found: {reusable_model_path}")
+            print("   Please train the model first using notebook 01")
+
+        # 3. Beverage Detector
+        beverage_model_path = MODEL_DIR / 'beverage_detector_best.pth'
+        if beverage_model_path.exists():
+            from models.beverage_detector_model import BeverageDetectorPredictor
+            beverage_detector = BeverageDetectorPredictor(
+                model_path=str(beverage_model_path),
+                device=DEVICE
+            )
+        else:
+            print(f"⚠️  Beverage detector not found: {beverage_model_path}")
+            print("   Please train the model first using notebook 02")
+
+        print("="*60)
+        print("✓ Models loaded successfully!")
+        print("="*60)
+
+    except Exception as e:
+        print(f"❌ Error loading models: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+# 라우터 등록
+from routes.container import router as container_router
+from routes.health import router as health_router
+
+app.include_router(container_router)
+app.include_router(health_router)
+
+
+@app.get("/")
+async def root():
+    """루트 엔드포인트"""
+    return {
+        "message": "Container Verification API",
+        "version": "1.0.0",
+        "endpoints": {
+            "verify": "/container/verify",
+            "health": "/health",
+            "docs": "/docs"
+        }
+    }
 
 
 if __name__ == "__main__":
+    import uvicorn
     port = int(os.getenv("PORT", 8000))
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=port,
-        reload=True,
-        log_level="info"
-    )
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)

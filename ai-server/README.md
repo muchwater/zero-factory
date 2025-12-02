@@ -1,564 +1,239 @@
-# AI Model Server - 다회용기 검증 시스템
+# AI Container Verification Server
 
-자체 학습 모델을 사용한 다회용기 검증 AI 서버
+YOLO + EfficientNet 기반 용기 검증 시스템
 
-## 📋 목차
-- [개요](#개요)
-- [빠른 시작](#빠른-시작)
-- [Docker 사용법](#docker-사용법)
-- [로컬 개발](#로컬-개발)
-- [모델 학습](#모델-학습)
-- [API 문서](#api-문서)
+## 주요 기능
 
----
+1. **컨테이너 감지**: YOLO를 사용하여 bottle/cup 자동 감지 및 크롭
+2. **다회용기 검증**: EfficientNet-B0 기반 일회용/다회용 분류
+3. **음료 검증**: EfficientNet-B0 기반 음료 유무 판단 (Yes/No/Unclear)
 
-## 개요
+## 시스템 구성
 
-### 제공 기능
-1. **객체 검출**: YOLO v8 기반 컵/뚜껑 위치 검출
-2. **다회용기 분류**: ResNet18 기반 일회용기 vs 다회용기 구분
-3. **임베딩 생성**: Siamese Network로 256차원 벡터 생성
-4. **음료 검증**: MobileNetV3 기반 음료 유무 확인
+```
+┌─────────────┐
+│   이미지    │
+└──────┬──────┘
+       ↓
+┌─────────────────────────────┐
+│ 1. Container Detection      │
+│    (YOLO)                   │
+│    - 1개만 감지 → 통과      │
+│    - 0개 or 2개+ → 실패     │
+└──────┬──────────────────────┘
+       ↓
+┌─────────────────────────────┐
+│ 2. Reusable Classification  │
+│    (EfficientNet-B0)        │
+│    - 다회용 → 통과          │
+│    - 일회용 → 실패          │
+└──────┬──────────────────────┘
+       ↓
+┌─────────────────────────────┐
+│ 3. Beverage Detection       │
+│    (EfficientNet-B0)        │
+│    - Yes: 음료 있음         │
+│    - No: 비어있음           │
+│    - Unclear: 불명확        │
+└──────┬──────────────────────┘
+       ↓
+   JSON 응답
+```
 
-### 기술 스택
-- **프레임워크**: FastAPI
-- **모델**: PyTorch (YOLO, ResNet, Siamese Network, MobileNet)
-- **배포**: Docker + GPU 지원
+## 빠른 시작
 
----
-
-## 🚀 빠른 시작
-
-### 1. Docker로 실행 (권장)
-
-#### GPU가 있는 경우
+### 1. 데이터 전처리
 ```bash
-cd ai-server
-
-# 환경 변수 설정
-cp .env.example .env
-
-# Docker Compose로 실행
-docker-compose up -d ai-server
-
-# 로그 확인
-docker-compose logs -f ai-server
+docker compose -f docker-compose.preprocess.yml up
 ```
+→ YOLO로 용기를 감지하고 크롭하여 `data_preprocessed/`에 저장
 
-#### GPU가 없는 경우
-`docker-compose.yml`에서 GPU 설정 제거:
-```yaml
-# deploy 섹션 주석 처리 또는 제거
-# deploy:
-#   resources:
-#     reservations:
-#       devices:
-#         - driver: nvidia
-```
-
-그 다음 실행:
+### 2. 모델 학습
 ```bash
-docker-compose up -d ai-server
+docker compose up jupyter
+# 브라우저: http://localhost:8888/lab
+
+# 실행 순서:
+# 1. notebooks/01_reusable_classifier_training.ipynb
+# 2. notebooks/02_beverage_detector_training.ipynb
 ```
+→ 학습된 모델이 `models/weights/`에 저장됨
 
-### 2. 서버 확인
-
+### 3. API 서버 실행
 ```bash
-# 헬스체크
-curl http://localhost:8000/health
-
-# API 문서 확인
-# 브라우저에서 http://localhost:8000/docs 접속
+docker compose up ai-server
 ```
+→ API 서버가 http://localhost:8000 에서 실행됨
 
----
-
-## 🐳 Docker 사용법
-
-### 서비스 구성
-
-**ai-server/docker-compose.yml**에 3개 서비스:
-
-1. **ai-server**: FastAPI 서버 (포트 8000)
-2. **jupyter**: Jupyter Lab 서버 (포트 8888, 선택사항)
-3. **label-studio**: 데이터셋 어노테이션 툴 (포트 8080, 선택사항)
-
-### 서비스 관리
-
+### 4. API 테스트
 ```bash
-# 모든 서비스 시작
-docker-compose up -d
+# 헬스 체크
+python test_api.py --health
 
-# 특정 서비스만 시작
-docker-compose up -d ai-server
-docker-compose up -d jupyter
+# 이미지 검증
+python test_api.py --image path/to/image.jpg
 
-# 서비스 중지
-docker-compose down
-
-# 재시작
-docker-compose restart ai-server
-
-# 로그 확인
-docker-compose logs -f ai-server
-docker-compose logs -f jupyter
-
-# 컨테이너 접속
-docker-compose exec ai-server bash
+# 또는 curl
+curl -X POST http://localhost:8000/container/verify \
+  -F "file=@image.jpg"
 ```
 
-### Jupyter Notebook 사용
-
-```bash
-# Jupyter 서버 시작
-docker-compose up -d jupyter
-
-# 브라우저에서 접속
-# http://localhost:8888
-# (토큰 없이 접속 가능하도록 설정됨)
-```
-
-### Label Studio 사용 (데이터셋 어노테이션)
-
-```bash
-# Label Studio 서버 시작
-docker-compose up -d label-studio
-
-# 브라우저에서 접속
-# http://localhost:8080
-
-# 기본 로그인 정보:
-# Email: admin@example.com
-# Password: admin123
-```
-
-**주요 기능**:
-- 이미지 자르기, 회전, 확대/축소
-- Bounding Box, Polygon, Segmentation 어노테이션
-- COCO, YOLO, Pascal VOC 등 다양한 포맷으로 내보내기
-- 프로젝트별 데이터 관리
-
-**데이터 위치**:
-- 어노테이션할 이미지: `data/` 디렉토리에 배치
-- 프로젝트 데이터: `label-studio/data/`에 자동 저장
-- 내보내기 결과: `label-studio/export/`
-
-### 볼륨 관리
-
-데이터는 다음 디렉토리에 저장됩니다:
+## 프로젝트 구조
 
 ```
 ai-server/
-├── models/          # 학습된 모델 가중치
-├── uploads/         # 업로드된 이미지
-├── data/           # 학습 데이터
-├── notebooks/      # Jupyter notebooks
-└── label-studio/   # Label Studio 데이터
-    ├── data/       # 프로젝트 및 어노테이션
-    └── export/     # 내보내기 결과
+├── main.py                    # FastAPI 서버
+├── models/                    # 모델 정의
+│   ├── container_detector.py
+│   ├── reusable_classifier_model.py
+│   ├── beverage_detector_model.py
+│   └── weights/              # 학습된 모델 (.pth)
+├── routes/                    # API 라우터
+│   ├── container.py
+│   └── health.py
+├── schemas/                   # 응답 스키마
+├── notebooks/                 # Jupyter 학습 노트북
+│   ├── 01_reusable_classifier_training.ipynb
+│   ├── 02_beverage_detector_training.ipynb
+│   └── gpu_memory_utils.py
+├── scripts/                   # 전처리 스크립트
+│   └── preprocess_container_images.py
+├── data/                      # 원본 학습 데이터
+├── data_preprocessed/         # 전처리된 데이터
+├── utils/                     # 유틸리티
+└── test_api.py               # API 테스트 스크립트
 ```
 
----
+## 문서
 
-## 💻 로컬 개발
+- **[API_USAGE.md](API_USAGE.md)** - API 사용 가이드 및 예제
+- **[README_API.md](README_API.md)** - API 서버 실행 가이드
+- **[README_TRAINING.md](README_TRAINING.md)** - 모델 학습 가이드
+- **[README_PREPROCESS.md](README_PREPROCESS.md)** - 데이터 전처리 가이드
+- **[GPU_MEMORY_GUIDE.md](GPU_MEMORY_GUIDE.md)** - GPU 메모리 관리
 
-### 1. 환경 설정
+## API 엔드포인트
+
+### POST /container/verify
+
+**요청:**
+```bash
+curl -X POST http://localhost:8000/container/verify \
+  -F "file=@image.jpg"
+```
+
+**응답:**
+```json
+{
+  "container_detected": true,
+  "num_containers": 1,
+  "is_reusable": true,
+  "reusable_confidence": 0.95,
+  "beverage_status": "Yes",
+  "has_beverage": true,
+  "beverage_confidence": 0.88,
+  "message": "Container verified successfully",
+  "container_class": "cup",
+  "container_confidence": 0.92
+}
+```
+
+## 모델 성능
+
+### 다회용기 분류 모델
+- **아키텍처**: EfficientNet-B0
+- **정확도**: ~100% (validation set)
+- **클래스**: disposable (58), reusable (174)
+
+### 음료 검증 모델
+- **아키텍처**: EfficientNet-B0
+- **정확도**: ~95%+ (validation set)
+- **클래스**: empty (43), has_beverage (127)
+
+### 추론 성능 (RTX 2060)
+- **전체 처리**: 150-250ms
+- **GPU 메모리**: 요청당 ~500MB
+
+## 요구사항
+
+### 하드웨어
+- **GPU**: NVIDIA GPU (RTX 2060 이상 권장)
+- **VRAM**: 6GB 이상
+- **RAM**: 8GB 이상
+
+### 소프트웨어
+- Docker & Docker Compose
+- NVIDIA Docker Runtime
+- Python 3.10+
+- CUDA 11.8+
+
+## 개발 환경
+
+### Docker Compose 서비스
 
 ```bash
-cd ai-server
+# AI 서버
+docker compose up ai-server
 
-# Python 가상환경 생성
-python3 -m venv venv
-source venv/bin/activate  # Linux/Mac
-# venv\Scripts\activate  # Windows
+# Jupyter Lab (학습용)
+docker compose up jupyter
+
+# 데이터 전처리
+docker compose -f docker-compose.preprocess.yml up
+```
+
+### 로컬 개발
+
+```bash
+# 가상환경 생성
+python -m venv venv
+source venv/bin/activate
 
 # 의존성 설치
 pip install -r requirements.txt
-```
 
-### 2. GPU 설정 (선택사항)
-
-CUDA가 설치된 경우:
-```bash
-# PyTorch GPU 버전 설치
-pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
-
-# GPU 확인
-python -c "import torch; print(torch.cuda.is_available())"
-```
-
-### 3. 환경 변수 설정
-
-```bash
-cp .env.example .env
-# .env 파일 편집
-```
-
-### 4. 서버 실행
-
-```bash
-# 개발 모드 (자동 재로드)
+# 서버 실행
 python main.py
-
-# 또는
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
----
-
-## 🎓 모델 학습
-
-### 학습 노트북
-
-`notebooks/` 디렉토리에 Jupyter Notebook:
-
-1. **01_reusable_classifier.ipynb**: 다회용기 분류 모델
-2. **02_embedding_generator.ipynb**: CLIP 임베딩
-3. **03_beverage_detector.ipynb**: 음료 검증 모델
-4. **05_object_detection_cup_cropping.ipynb**: YOLO 객체 검출 (컵/뚜껑)
-
-### Jupyter 실행
-
-#### 로컬에서:
-```bash
-source venv/bin/activate
-jupyter lab notebooks/
-```
-
-#### Docker에서:
-```bash
-docker-compose up -d jupyter
-# http://localhost:8888 접속
-```
-
-### YOLO 학습 (객체 검출)
-
-#### 1. 데이터셋 변환
-
-Label Studio에서 어노테이션한 데이터를 YOLO 포맷으로 변환:
-
-```bash
-# Label Studio JSON을 YOLO 데이터셋으로 변환
-python3 scripts/convert_labelstudio_to_yolo.py \
-  dataset/project-1-at-2025-11-12-05-32-de5d2a99.json \
-  --image-dir data/raw_images \
-  --output-dir data/yolo_dataset \
-  --split 0.8 0.1 0.1
-
-# container만 학습하려면 (lid 제외)
-python3 scripts/convert_labelstudio_to_yolo.py \
-  dataset/project-1-at-2025-11-12-05-32-de5d2a99.json \
-  --image-dir data/raw_images \
-  --output-dir data/yolo_dataset \
-  --classes container
-```
-
-**출력 구조**:
-```
-data/yolo_dataset/
-├── data.yaml              # YOLO 설정 파일
-├── dataset_info.json      # 데이터셋 통계
-├── train/
-│   ├── images/           # 학습 이미지
-│   └── labels/           # YOLO 라벨 (.txt)
-├── val/
-│   ├── images/
-│   └── labels/
-└── test/
-    ├── images/
-    └── labels/
-```
-
-#### 2. YOLO 모델 학습
-
-```bash
-# 기본 학습 (YOLOv8n, 100 epochs)
-python3 scripts/train_yolo.py --data data/yolo_dataset/data.yaml
-
-# 더 큰 모델 사용 (높은 정확도)
-python3 scripts/train_yolo.py \
-  --data data/yolo_dataset/data.yaml \
-  --model yolov8s.pt \
-  --epochs 200
-
-# 자동 배치 사이즈 (권장)
-python3 scripts/train_yolo.py \
-  --data data/yolo_dataset/data.yaml \
-  --batch -1
-
-# GPU 선택
-python3 scripts/train_yolo.py \
-  --data data/yolo_dataset/data.yaml \
-  --device 0
-
-# 학습 재개
-python3 scripts/train_yolo.py \
-  --resume runs/detect/cup_detection/weights/last.pt
-```
-
-**모델 크기 선택**:
-- `yolov8n.pt`: Nano (가장 빠름, 가벼움) - 추천
-- `yolov8s.pt`: Small (균형잡힌 성능)
-- `yolov8m.pt`: Medium (높은 정확도)
-- `yolov8l.pt`: Large (매우 높은 정확도)
-- `yolov8x.pt`: XLarge (최고 정확도, 느림)
-
-#### 3. 학습 결과 확인
-
-```bash
-# 학습 결과는 runs/detect/cup_detection/ 에 저장
-runs/detect/cup_detection/
-├── weights/
-│   ├── best.pt          # 최고 성능 모델
-│   └── last.pt          # 마지막 체크포인트
-├── results.csv          # 학습 메트릭
-├── results.png          # 학습 그래프
-├── confusion_matrix.png
-└── val_batch*.jpg       # 검증 이미지
-
-# 모델 검증
-python3 scripts/train_yolo.py \
-  --validate runs/detect/cup_detection/weights/best.pt \
-  --data data/yolo_dataset/data.yaml
-```
-
-### 분류 모델 학습
-
-#### 데이터 준비
-
-Label Studio 데이터를 분류 데이터셋으로 변환:
-
-```bash
-# 다회용기 분류 데이터셋 생성
-python3 scripts/convert_labelstudio_to_dataset.py \
-  dataset/project-1-at-2025-11-12-05-32-de5d2a99.json \
-  --image-dir data/raw_images \
-  --output-dir dataset_output \
-  --task reusable
-
-# 음료 검증 데이터셋 생성
-python3 scripts/convert_labelstudio_to_dataset.py \
-  dataset/project-1-at-2025-11-12-05-32-de5d2a99.json \
-  --image-dir data/raw_images \
-  --output-dir dataset_output \
-  --task beverage
-
-# 임베딩용 데이터셋 포함
-python3 scripts/convert_labelstudio_to_dataset.py \
-  dataset/project-1-at-2025-11-12-05-32-de5d2a99.json \
-  --image-dir data/raw_images \
-  --output-dir dataset_output \
-  --task both \
-  --include-types
-```
-
-**출력 구조**:
-```
-dataset_output/dataset_YYYYMMDD_HHMMSS.zip
-├── reusable/
-│   ├── reusable/         # 다회용기 (cropped)
-│   ├── disposable/       # 일회용기 (cropped)
-│   └── unclear/
-├── beverage/
-│   ├── with_beverage/    # 음료 있음 (cropped)
-│   ├── empty/            # 빈 용기 (cropped)
-│   └── unclear/
-└── types/                # 임베딩용 (--include-types 사용 시)
-    ├── CUP001/
-    ├── CUP002/
-    └── ...
-```
-
-#### 학습 순서
-
-##### Option 1: End-to-End 자동 학습 (권장)
-
-**00_end_to_end_training.ipynb** 실행 - 모든 모델을 순차적으로 학습
-
-```bash
-# Jupyter 실행
-jupyter lab notebooks/
-
-# 00_end_to_end_training.ipynb 열어서 셀 순차 실행
-```
-
-**학습 순서**:
-1. YOLO (객체 검출) → 30분
-2. Siamese Network (임베딩) → 20분
-3. ResNet (등록용 분류기) → 15분
-4. MobileNet (검증용 분류기) → 10분
-
-**총 예상 시간**: ~1.5시간 (GPU 기준)
-
-##### Option 2: 개별 모델 학습
-
-1. **YOLO 학습** (객체 검출 - container/lid 위치 찾기)
-   ```bash
-   python3 scripts/train_yolo.py --data data/yolo_dataset/data.yaml
-   ```
-
-2. **Siamese Network** 실행 (임베딩)
-   - `04_siamese_network_training.ipynb` 실행
-
-3. **ResNet/MobileNet** 실행 (다회용기 분류)
-   - `01_reusable_classifier.ipynb` 실행
-
-4. **음료 검증** (선택사항)
-   - `03_beverage_detector.ipynb` 실행
-
-학습된 모델은 `models/weights/`에 저장됩니다.
-
----
-
-## 📖 API 문서
-
-### 엔드포인트
-
-#### 1. 다회용기 분류
-```http
-POST /classify-reusable
-Content-Type: multipart/form-data
-
-file: <image_file>
-```
-
-**응답**:
-```json
-{
-  "is_reusable": true,
-  "confidence": 0.95,
-  "message": "다회용기로 판단됨"
-}
-```
-
-#### 2. 임베딩 생성
-```http
-POST /generate-embedding
-Content-Type: multipart/form-data
-
-file: <image_file>
-```
-
-**응답**:
-```json
-{
-  "embedding": [0.123, 0.456, ..., 0.789],
-  "dimension": 512
-}
-```
-
-#### 3. 음료 검증
-```http
-POST /verify-beverage
-Content-Type: multipart/form-data
-
-file: <image_file>
-```
-
-**응답**:
-```json
-{
-  "has_beverage": true,
-  "confidence": 0.92,
-  "message": "음료가 담겨있음"
-}
-```
-
-#### 4. 헬스체크
-```http
-GET /health
-```
-
-**응답**:
-```json
-{
-  "status": "healthy",
-  "device": "cuda",
-  "models_loaded": {
-    "classifier": true,
-    "embedding_generator": true,
-    "beverage_detector": true
-  }
-}
-```
-
-### Swagger UI
-
-서버 실행 후 브라우저에서 접속:
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-
----
-
-## 🔧 트러블슈팅
+## 문제 해결
 
 ### GPU 메모리 부족
 ```bash
-# .env 파일에서 배치 크기 줄이기
-BATCH_SIZE=4
-```
-
-### CUDA 오류
-```bash
-# GPU 사용 가능 확인
-nvidia-smi
-
-# PyTorch CUDA 확인
-python -c "import torch; print(torch.cuda.is_available())"
-
 # CPU 모드로 전환
-# .env 파일에서
-DEVICE=cpu
+DEVICE=cpu docker compose up ai-server
 ```
 
-### Docker GPU 지원 안됨
+### 모델 미로드
 ```bash
-# NVIDIA Container Toolkit 설치 확인
-nvidia-container-toolkit --version
+# 모델 파일 확인
+ls -la models/weights/
 
-# Docker에서 GPU 테스트
-docker run --rm --gpus all nvidia/cuda:11.8.0-base-ubuntu22.04 nvidia-smi
+# 학습 필요
+docker compose up jupyter
 ```
 
-### 포트 충돌
+### Jupyter 연결 실패
 ```bash
-# docker-compose.yml에서 포트 변경
-ports:
-  - "8001:8000"  # 8000 → 8001
+# 커널 재시작
+docker compose restart jupyter
+
+# 로그 확인
+docker logs ai-jupyter
 ```
 
----
+## 기술 스택
 
-## 📊 성능 최적화
+- **Backend**: FastAPI
+- **Object Detection**: YOLOv8 (Ultralytics)
+- **Classification**: PyTorch + EfficientNet-B0
+- **Image Processing**: Pillow, OpenCV
+- **Container**: Docker, NVIDIA Runtime
 
-### 모델 최적화
-- **양자화 (INT8)**: 모델 크기 75% 감소
-- **ONNX 변환**: 추론 속도 20-30% 향상
-- **배치 처리**: 여러 이미지 동시 처리
+## 라이선스
 
-학습 노트북에 최적화 코드 포함.
+MIT License
 
-### 서버 최적화
-```bash
-# 프로덕션 모드 (workers 추가)
-uvicorn main:app --workers 4 --host 0.0.0.0 --port 8000
-```
+## 기여
 
----
-
-## 📝 개발 로드맵
-
-- [ ] 모델 구현 (classifier, embedding, beverage detector)
-- [ ] FastAPI 엔드포인트 완성
-- [ ] 모델 로딩 및 추론 구현
-- [ ] 에러 핸들링 강화
-- [ ] 로깅 시스템 구축
-- [ ] 성능 모니터링
-- [ ] 캐싱 전략
-- [ ] 배치 처리 최적화
-
----
-
-## 📄 라이선스
-
-학습용 프로젝트
+이슈 및 PR 환영합니다!

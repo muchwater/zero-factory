@@ -1,200 +1,349 @@
-# AI Server API 사용 가이드
+# Container Verification API 사용 가이드
+
+통합 용기 검증 API - 컨테이너 감지, 다회용기 검증, 음료 검증을 한 번에 처리
 
 ## API 엔드포인트
 
-### 1. 텀블러 등록 API (`/register-tumbler`)
+### POST /container/verify
 
-텀블러를 시스템에 등록합니다.
-
-**처리 과정:**
-1. YOLO로 텀블러/컵 영역 감지 및 자르기
-   - 텀블러/컵이 없거나 2개 이상이면 실패
-2. 고성능 ResNet으로 다회용기 검증
-3. Siamese Network로 임베딩 추출
+이미지를 업로드하여 용기를 검증합니다.
 
 **요청:**
-```bash
-curl -X POST "http://localhost:8000/register-tumbler" \
-  -H "Content-Type: multipart/form-data" \
-  -F "file=@tumbler_image.jpg"
-```
-
-**성공 응답 예시:**
-```json
-{
-  "success": true,
-  "is_reusable": true,
-  "embedding": [0.123, 0.456, ...],  // 256차원 벡터
-  "message": "Reusable tumbler registered successfully (confidence: 95.3%)",
-  "confidence": 0.953
-}
-```
-
-**실패 응답 예시:**
-```json
-{
-  "success": false,
-  "is_reusable": false,
-  "embedding": [],
-  "message": "Detection failed: No cup or tumbler detected in image",
-  "error": "No cup or tumbler detected in image"
-}
-```
-
----
-
-### 2. 사용 검증 API (`/verify-usage`)
-
-텀블러 사용을 검증합니다 (음료 포함 여부 확인).
-
-**처리 과정:**
-1. YOLO로 텀블러/컵 영역 감지 및 자르기
-   - 텀블러/컵이 없거나 2개 이상이면 실패
-2. 속도 빠른 MobileNet으로 음료 검증
-3. Siamese Network로 임베딩 추출
-
-**요청:**
-```bash
-curl -X POST "http://localhost:8000/verify-usage" \
-  -H "Content-Type: multipart/form-data" \
-  -F "file=@tumbler_with_beverage.jpg"
-```
-
-**성공 응답 예시:**
-```json
-{
-  "success": true,
-  "has_beverage": true,
-  "embedding": [0.123, 0.456, ...],  // 256차원 벡터
-  "message": "Usage verified with beverage (confidence: 87.6%)",
-  "confidence": 0.876
-}
-```
-
-**실패 응답 예시:**
-```json
-{
-  "success": false,
-  "has_beverage": false,
-  "embedding": [],
-  "message": "No beverage detected: No beverage detected - empty",
-  "confidence": 0.923,
-  "error": "No beverage in container"
-}
-```
-
----
-
-## 실패 케이스
-
-### 1. 텀블러/컵 감지 실패
-- **원인:** 이미지에 텀블러/컵이 없음
-- **에러:** "No cup or tumbler detected in image"
-
-### 2. 여러 객체 감지
-- **원인:** 이미지에 2개 이상의 텀블러/컵 감지
-- **에러:** "Multiple objects detected (2). Please ensure only one cup/tumbler is in the image"
-
-### 3. 일회용기 감지
-- **원인:** ResNet이 일회용기로 판단
-- **에러:** "Disposable container detected"
-
-### 4. 음료 없음
-- **원인:** MobileNet이 음료를 감지하지 못함
-- **에러:** "No beverage in container"
-
----
-
-## 모델 정보
-
-| 모델 | 용도 | 특징 |
-|------|------|------|
-| **YOLOv8n** | 객체 감지 | 빠르고 가벼움, 배경 제거 |
-| **ResNet50** | 다회용기 검증 (등록) | 고성능, 정확도 높음 |
-| **MobileNetV3** | 음료 검증 (사용) | 빠른 추론 속도 |
-| **Siamese Network** | 임베딩 생성 | 256차원 벡터 |
-
----
-
-## 헬스체크
-
-```bash
-curl http://localhost:8000/health
-```
+- Method: `POST`
+- Content-Type: `multipart/form-data`
+- Body: 이미지 파일 (`file`)
 
 **응답:**
 ```json
 {
+  "container_detected": true,
+  "num_containers": 1,
+  "is_reusable": true,
+  "reusable_confidence": 0.95,
+  "beverage_status": "Yes",
+  "has_beverage": true,
+  "beverage_confidence": 0.88,
+  "message": "Container verified successfully",
+  "error": null,
+  "container_class": "cup",
+  "container_confidence": 0.92
+}
+```
+
+## 처리 흐름
+
+```
+이미지 입력
+    ↓
+[1] 컨테이너 감지 (YOLO)
+    ├─ 0개 감지 → ❌ 실패 반환
+    ├─ 2개 이상 → ❌ 실패 반환
+    └─ 1개 감지 → ✅ 다음 단계
+        ↓
+[2] 다회용기 검증 (EfficientNet-B0)
+    ├─ 일회용 → ❌ 실패 반환
+    └─ 다회용 → ✅ 다음 단계
+        ↓
+[3] 음료 검증 (EfficientNet-B0)
+    ├─ Yes (음료 있음)
+    ├─ No (비어있음)
+    └─ Unclear (불명확)
+        ↓
+    ✅ 최종 결과 반환
+```
+
+## 응답 필드 설명
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `container_detected` | boolean | 컨테이너 1개 감지 여부 |
+| `num_containers` | integer | 감지된 컨테이너 수 (0, 1, 2+) |
+| `is_reusable` | boolean? | 다회용기 여부 (null: 감지 실패) |
+| `reusable_confidence` | float? | 다회용기 검증 신뢰도 (0-1) |
+| `beverage_status` | string? | 음료 상태 ("Yes", "No", "Unclear") |
+| `has_beverage` | boolean? | 음료 있음 여부 |
+| `beverage_confidence` | float? | 음료 검증 신뢰도 (0-1) |
+| `message` | string | 처리 결과 메시지 |
+| `error` | string? | 오류 메시지 (실패 시) |
+| `container_class` | string? | 컨테이너 종류 ("bottle", "cup") |
+| `container_confidence` | float? | 컨테이너 감지 신뢰도 (0-1) |
+
+## 사용 예시
+
+### cURL
+
+```bash
+# 로컬 이미지 업로드
+curl -X POST http://localhost:8000/container/verify \
+  -F "file=@/path/to/image.jpg"
+
+# 원격 서버
+curl -X POST https://your-server.com/container/verify \
+  -F "file=@image.jpg"
+```
+
+### Python (requests)
+
+```python
+import requests
+
+url = "http://localhost:8000/container/verify"
+files = {"file": open("image.jpg", "rb")}
+
+response = requests.post(url, files=files)
+result = response.json()
+
+print(f"Container detected: {result['container_detected']}")
+print(f"Is reusable: {result.get('is_reusable')}")
+print(f"Beverage status: {result.get('beverage_status')}")
+```
+
+### JavaScript (fetch)
+
+```javascript
+const formData = new FormData();
+formData.append('file', fileInput.files[0]);
+
+fetch('http://localhost:8000/container/verify', {
+  method: 'POST',
+  body: formData
+})
+  .then(response => response.json())
+  .then(data => {
+    console.log('Container detected:', data.container_detected);
+    console.log('Is reusable:', data.is_reusable);
+    console.log('Beverage status:', data.beverage_status);
+  });
+```
+
+## 응답 시나리오
+
+### 1. 성공 (다회용기 + 음료 있음)
+
+```json
+{
+  "container_detected": true,
+  "num_containers": 1,
+  "is_reusable": true,
+  "reusable_confidence": 0.95,
+  "beverage_status": "Yes",
+  "has_beverage": true,
+  "beverage_confidence": 0.88,
+  "message": "Container verified: Yes beverage (confidence: 88.0%)",
+  "error": null,
+  "container_class": "cup",
+  "container_confidence": 0.92
+}
+```
+
+### 2. 실패 - 컨테이너 미감지
+
+```json
+{
+  "container_detected": false,
+  "num_containers": 0,
+  "is_reusable": null,
+  "reusable_confidence": null,
+  "beverage_status": null,
+  "has_beverage": null,
+  "beverage_confidence": null,
+  "message": "Container detection failed",
+  "error": "No container detected",
+  "container_class": null,
+  "container_confidence": null
+}
+```
+
+### 3. 실패 - 여러 컨테이너 감지
+
+```json
+{
+  "container_detected": false,
+  "num_containers": 3,
+  "is_reusable": null,
+  "reusable_confidence": null,
+  "beverage_status": null,
+  "has_beverage": null,
+  "beverage_confidence": null,
+  "message": "Container detection failed",
+  "error": "Multiple containers detected: 3",
+  "container_class": null,
+  "container_confidence": null
+}
+```
+
+### 4. 실패 - 일회용기 감지
+
+```json
+{
+  "container_detected": true,
+  "num_containers": 1,
+  "is_reusable": false,
+  "reusable_confidence": 0.92,
+  "beverage_status": null,
+  "has_beverage": null,
+  "beverage_confidence": null,
+  "message": "Not a reusable container (confidence: 92.0%)",
+  "error": "Disposable container detected",
+  "container_class": "bottle",
+  "container_confidence": 0.85
+}
+```
+
+### 5. 성공 - 음료 없음
+
+```json
+{
+  "container_detected": true,
+  "num_containers": 1,
+  "is_reusable": true,
+  "reusable_confidence": 0.96,
+  "beverage_status": "No",
+  "has_beverage": false,
+  "beverage_confidence": 0.91,
+  "message": "Container verified: No beverage (confidence: 91.0%)",
+  "error": null,
+  "container_class": "cup",
+  "container_confidence": 0.88
+}
+```
+
+### 6. 성공 - 음료 상태 불명확
+
+```json
+{
+  "container_detected": true,
+  "num_containers": 1,
+  "is_reusable": true,
+  "reusable_confidence": 0.94,
+  "beverage_status": "Unclear",
+  "has_beverage": false,
+  "beverage_confidence": 0.62,
+  "message": "Container verified: Unclear beverage (confidence: 62.0%)",
+  "error": null,
+  "container_class": "cup",
+  "container_confidence": 0.89
+}
+```
+
+## 헬스 체크
+
+### GET /container/health
+
+모델 로드 상태를 확인합니다.
+
+```bash
+curl http://localhost:8000/container/health
+```
+
+응답:
+```json
+{
   "status": "healthy",
-  "device": "cuda",
-  "models_loaded": {
-    "cup_detector": true,
-    "classifier": true,
-    "embedding_generator": true,
+  "models": {
+    "container_detector": true,
+    "reusable_classifier": true,
     "beverage_detector": true
   }
 }
 ```
 
----
-
 ## API 문서
 
-- **Swagger UI:** http://localhost:8000/docs
-- **ReDoc:** http://localhost:8000/redoc
+### Swagger UI
 
----
-
-## 통합 플로우 예시
-
-### 텀블러 등록 + 사용 검증
-```python
-import requests
-import numpy as np
-
-# 1. 텀블러 등록
-with open('tumbler.jpg', 'rb') as f:
-    response = requests.post(
-        'http://localhost:8000/register-tumbler',
-        files={'file': f}
-    )
-    registration = response.json()
-
-    if registration['success']:
-        tumbler_embedding = np.array(registration['embedding'])
-        print(f"등록 성공! 임베딩: {len(tumbler_embedding)}차원")
-    else:
-        print(f"등록 실패: {registration['error']}")
-
-# 2. 사용 검증
-with open('tumbler_with_coffee.jpg', 'rb') as f:
-    response = requests.post(
-        'http://localhost:8000/verify-usage',
-        files={'file': f}
-    )
-    usage = response.json()
-
-    if usage['success']:
-        usage_embedding = np.array(usage['embedding'])
-
-        # 코사인 유사도로 동일 텀블러인지 확인
-        similarity = np.dot(tumbler_embedding, usage_embedding)
-        print(f"사용 검증 성공! 유사도: {similarity:.3f}")
-
-        if similarity > 0.7:
-            print("✅ 동일한 텀블러입니다")
-        else:
-            print("❌ 다른 텀블러입니다")
-    else:
-        print(f"검증 실패: {usage['error']}")
+```
+http://localhost:8000/docs
 ```
 
----
+### ReDoc
 
-## 주의사항
+```
+http://localhost:8000/redoc
+```
 
-1. **이미지 품질:** 텀블러/컵이 명확하게 보이는 이미지 사용
-2. **단일 객체:** 한 이미지에 하나의 텀블러/컵만 포함
-3. **GPU 사용:** CUDA 사용 시 추론 속도 대폭 향상
-4. **임베딩 저장:** 반환된 임베딩 벡터를 DB에 저장하여 매칭에 활용
-5. **L2 정규화:** 임베딩은 이미 L2 정규화되어 있어 코사인 유사도는 내적으로 계산 가능
+## 서버 실행
+
+### Docker Compose
+
+```bash
+docker compose up ai-server
+```
+
+### 로컬 실행
+
+```bash
+# 가상환경 활성화
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# 의존성 설치
+pip install -r requirements.txt
+
+# 서버 실행
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+## 에러 코드
+
+| HTTP 코드 | 설명 |
+|-----------|------|
+| 200 | 성공 |
+| 422 | 잘못된 요청 (파일 누락 등) |
+| 500 | 서버 오류 |
+| 503 | 모델 미로드 |
+
+## 성능
+
+### 응답 시간 (RTX 2060 기준)
+
+- **컨테이너 감지**: ~50-100ms
+- **다회용기 검증**: ~30-50ms
+- **음료 검증**: ~30-50ms
+- **전체**: ~150-250ms
+
+### 동시 요청
+
+- 권장: 최대 4 동시 요청
+- GPU 메모리: 요청당 ~500MB
+
+## 문제 해결
+
+### 모델 미로드 (503 오류)
+
+```bash
+# 모델 파일 확인
+ls -la models/weights/
+
+# 필요한 파일:
+# - reusable_classifier_best.pth
+# - beverage_detector_best.pth
+```
+
+해결: 노트북으로 모델 학습 필요
+- `notebooks/01_reusable_classifier_training.ipynb`
+- `notebooks/02_beverage_detector_training.ipynb`
+
+### GPU 메모리 부족
+
+```python
+# main.py에서 DEVICE 변경
+DEVICE = 'cpu'  # 또는 환경변수 DEVICE=cpu
+```
+
+### 느린 응답
+
+1. GPU 사용 확인: `nvidia-smi`
+2. 배치 처리 고려
+3. 이미지 크기 조정 (권장: 800x600 이하)
+
+## 보안 권장사항
+
+1. **파일 크기 제한**: 최대 10MB
+2. **파일 형식 검증**: JPEG, PNG만 허용
+3. **Rate Limiting**: IP당 분당 60회
+4. **인증**: API 키 또는 JWT 토큰
+
+## 라이선스
+
+MIT License

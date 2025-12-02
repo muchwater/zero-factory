@@ -1,5 +1,7 @@
-"""Schemas for API request/response models"""
+"""
+Response Schemas
+"""
 
-from .responses import TumblerRegistrationResponse, UsageVerificationResponse
+from schemas.container_verification import ContainerVerificationResponse
 
-__all__ = ["TumblerRegistrationResponse", "UsageVerificationResponse"]
+__all__ = ['ContainerVerificationResponse']
