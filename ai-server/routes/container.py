@@ -87,43 +87,42 @@ async def verify_container(file: UploadFile = File(...)):
         # ===== Step 1: 컨테이너 감지 및 크롭 =====
         detection_result = container_detector.detect_and_crop(image_bytes)
 
+        # 검출 실패 시 원본 이미지를 그대로 사용 (false negative 방지)
         if not detection_result['container_detected']:
-            return ContainerVerificationResponse(
-                container_detected=False,
-                num_containers=detection_result['num_containers'],
-                message="Container detection failed",
-                error=detection_result['error'],
-                container_class=detection_result.get('class_name'),
-                container_confidence=detection_result.get('confidence')
-            )
-
-        # Cropped 이미지를 bytes로 변환
-        cropped_image = detection_result['cropped_image']
-        buffer = BytesIO()
-        cropped_image.save(buffer, format='JPEG', quality=95)
-        cropped_bytes = buffer.getvalue()
+            print(f"⚠️  Detection failed, using original image as fallback")
+            cropped_bytes = image_bytes
+            container_class = None
+            container_confidence = None
+        else:
+            # Cropped 이미지를 bytes로 변환
+            cropped_image = detection_result['cropped_image']
+            buffer = BytesIO()
+            cropped_image.save(buffer, format='JPEG', quality=95)
+            cropped_bytes = buffer.getvalue()
+            container_class = detection_result['class_name']
+            container_confidence = detection_result['confidence']
 
         # ===== Step 2: 다회용기 검증 =====
         reusable_result = reusable_classifier.predict(cropped_bytes)
 
         if not reusable_result['is_reusable']:
             return ContainerVerificationResponse(
-                container_detected=True,
-                num_containers=1,
+                container_detected=detection_result['container_detected'],
+                num_containers=detection_result['num_containers'],
                 is_reusable=False,
                 reusable_confidence=reusable_result['confidence'],
                 message=f"Not a reusable container (confidence: {reusable_result['confidence']:.1%})",
                 error="Disposable container detected",
-                container_class=detection_result['class_name'],
-                container_confidence=detection_result['confidence']
+                container_class=container_class,
+                container_confidence=container_confidence
             )
 
         # ===== Step 3: 음료 검증 =====
         beverage_result = beverage_detector.predict(cropped_bytes, unclear_threshold=0.7)
 
         return ContainerVerificationResponse(
-            container_detected=True,
-            num_containers=1,
+            container_detected=detection_result['container_detected'],
+            num_containers=detection_result['num_containers'],
             is_reusable=True,
             reusable_confidence=reusable_result['confidence'],
             beverage_status=beverage_result['beverage_status'],
@@ -131,8 +130,8 @@ async def verify_container(file: UploadFile = File(...)):
             beverage_confidence=beverage_result['confidence'],
             message=f"Container verified: {beverage_result['beverage_status']} beverage (confidence: {beverage_result['confidence']:.1%})",
             error=None,
-            container_class=detection_result['class_name'],
-            container_confidence=detection_result['confidence']
+            container_class=container_class,
+            container_confidence=container_confidence
         )
 
     except Exception as e:

@@ -13,10 +13,14 @@ import numpy as np
 class ContainerDetector:
     """YOLO 기반 용기(bottle, cup) 감지 및 크롭"""
 
-    # COCO 데이터셋의 bottle, cup 클래스 ID
+    # COCO 데이터셋의 용기 관련 클래스 ID
     CONTAINER_CLASSES = {
-        39: 'bottle',
-        41: 'cup',
+        39: 'bottle',      # 병
+        41: 'cup',         # 컵
+        45: 'bowl',        # 그릇
+        46: 'wine glass',  # 와인잔
+        47: 'vase',        # 꽃병
+        61: 'container',   # 임시: YOLO가 컵을 toilet으로 오인식하는 경우 처리
     }
 
     def __init__(self, model_path: str = 'yolov8n.pt', confidence_threshold: float = 0.25, device: str = 'cuda'):
@@ -66,6 +70,25 @@ class ContainerDetector:
                 verbose=False
             )
 
+            # 디버깅: 모든 검출된 객체 로깅
+            all_detections = []
+            for result in results:
+                boxes = result.boxes
+                for box in boxes:
+                    cls_id = int(box.cls[0])
+                    confidence = float(box.conf[0])
+                    class_name = result.names.get(cls_id, f'class_{cls_id}')
+                    all_detections.append({
+                        'class_id': cls_id,
+                        'class_name': class_name,
+                        'confidence': confidence
+                    })
+
+            if all_detections:
+                print(f"🔍 YOLO detected {len(all_detections)} objects: {all_detections}")
+            else:
+                print(f"🔍 YOLO detected NO objects (threshold: {self.confidence_threshold})")
+
             # 용기 클래스만 필터링
             detections = []
             for result in results:
@@ -83,6 +106,11 @@ class ContainerDetector:
                             'confidence': confidence
                         })
 
+            if all_detections and not detections:
+                print(f"⚠️  Objects detected but NO bottles/cups (container classes: {self.CONTAINER_CLASSES})")
+                print(f"   Detected objects: {all_detections}")
+                # TODO: 향후 custom YOLO 모델 사용 시 이 케이스 처리
+
             # 감지된 용기가 없는 경우
             if len(detections) == 0:
                 return {
@@ -96,21 +124,13 @@ class ContainerDetector:
                     'error': 'No container detected'
                 }
 
-            # 2개 이상 감지된 경우
+            # 2개 이상 감지된 경우: 가장 높은 확신도를 가진 것 선택
             if len(detections) > 1:
-                return {
-                    'success': False,
-                    'container_detected': False,
-                    'num_containers': len(detections),
-                    'cropped_image': None,
-                    'bbox': None,
-                    'class_name': None,
-                    'confidence': None,
-                    'error': f'Multiple containers detected: {len(detections)}'
-                }
-
-            # 정확히 1개 감지된 경우
-            detection = detections[0]
+                detection = max(detections, key=lambda x: x['confidence'])
+                print(f"⚠️  Multiple containers detected ({len(detections)}), selecting highest confidence: {detection['confidence']:.2f}")
+            else:
+                # 정확히 1개 감지된 경우
+                detection = detections[0]
             bbox = detection['bbox']
 
             # Crop with padding
@@ -119,7 +139,7 @@ class ContainerDetector:
             return {
                 'success': True,
                 'container_detected': True,
-                'num_containers': 1,
+                'num_containers': len(detections),  # 실제 검출된 총 개수
                 'cropped_image': cropped_image,
                 'bbox': bbox,
                 'class_name': detection['class_name'],

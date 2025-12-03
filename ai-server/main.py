@@ -50,8 +50,8 @@ async def load_models():
         # 1. Container Detector (YOLO)
         from models.container_detector import ContainerDetector
         container_detector = ContainerDetector(
-            model_path='yolov8n.pt',
-            confidence_threshold=0.25,
+            model_path='yolov8m.pt',  # medium 모델로 변경 (더 높은 정확도)
+            confidence_threshold=0.10,
             device=DEVICE
         )
 
