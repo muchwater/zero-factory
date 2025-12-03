@@ -48,6 +48,7 @@ export interface PlaceNearby {
   category: 'STORE' | 'FACILITY'
   types: ('RENT' | 'RETURN' | 'BONUS' | 'CLEAN')[]
   contact?: string
+  brand?: 'SUNHWA' | 'UTURN' // 관리자가 승인 시 선택한 브랜드
   distance: number // 미터 단위
   location?: {
     lat: number
@@ -59,5 +60,34 @@ export interface ApiResponse<T> {
   data: T
   message?: string
   status: number
+}
+
+export interface Member {
+  id: string
+  nickname: string
+  deviceId: string | null
+  pointBalance: number
+  createdAt: string
+}
+
+export interface Receipt {
+  id: number
+  memberId: string
+  placeId?: number
+  productDescription: string
+  photoPath: string
+  pointsEarned: number
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  verificationResult?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ReceiptHistoryResponse {
+  receipts: Receipt[]
+  totalCount: number
+  currentPage: number
+  pageSize: number
+  totalPages: number
 }
 

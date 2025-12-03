@@ -5,11 +5,11 @@ export class TransactionItemDto {
   @ApiProperty({ description: '거래 ID', example: 1 })
   id: number;
 
-  @ApiProperty({ description: '거래 장소 ID', example: 5 })
-  placeId: number;
+  @ApiProperty({ description: '거래 장소 ID', example: 5, required: false })
+  placeId?: number;
 
-  @ApiProperty({ description: '장소명', example: '스타벅스 강남점' })
-  placeName: string;
+  @ApiProperty({ description: '장소명', example: '스타벅스 강남점', required: false })
+  placeName?: string;
 
   @ApiProperty({ description: '포인트 금액', example: 50 })
   amount: number;

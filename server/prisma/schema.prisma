@@ -37,6 +37,12 @@ enum BrandType {
   UTURN
 }
 
+enum ReceiptStatus {
+  PENDING  // AI 검증 대기
+  APPROVED // 승인됨 (포인트 지급 완료)
+  REJECTED // 거부됨 (AI 검증 실패)
+}
+
 model Place {
   id            Int                                   @id @default(autoincrement())
   name          String
@@ -49,6 +55,7 @@ model Place {
   openingHours  StoreOpeningHour[]
   exceptions    StoreOpeningHourException[]
   transactions  PointTransaction[]
+  receipts      Receipt[]
   state         PlaceStateType                        @default(PENDING)
   reportedBrand String? // 제보자가 입력한 서비스명 (자유 텍스트)
   brand         BrandType? // 관리자가 승인 시 선택한 브랜드
@@ -91,16 +98,16 @@ model Member {
   createdAt    DateTime @default(now())
 
   transactions PointTransaction[]
-
-  pointLogs PointLog[]
+  receipts     Receipt[]
+  pointLogs    PointLog[]
 }
 
 model PointTransaction {
   id        Int             @id @default(autoincrement())
   member    Member          @relation(fields: [memberId], references: [id])
   memberId  String
-  place     Place           @relation(fields: [placeId], references: [id])
-  placeId   Int
+  place     Place?          @relation(fields: [placeId], references: [id])
+  placeId   Int?
   amount    Int
   type      TransactionType
   createdAt DateTime        @default(now())
@@ -114,4 +121,23 @@ model PointLog {
   yearMonth      String // YYYYMM 형식
   earnedPoints   Int    @default(0)
   redeemedPoints Int    @default(0)
+}
+
+model Receipt {
+  id                 Int           @id @default(autoincrement())
+  member             Member        @relation(fields: [memberId], references: [id])
+  memberId           String
+  place              Place?        @relation(fields: [placeId], references: [id])
+  placeId            Int?
+  productDescription String
+  photoPath          String
+  pointsEarned       Int           @default(100)
+  status             ReceiptStatus @default(PENDING)
+  verificationResult String?       @db.Text
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([memberId])
+  @@index([status])
+  @@index([createdAt])
 }

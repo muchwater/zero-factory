@@ -12,7 +12,7 @@ export class PointsService {
   /**
    * 포인트 적립
    */
-  async earnPoints(memberId: string, amount: number, placeId: number) {
+  async earnPoints(memberId: string, amount: number, placeId?: number) {
     const member = await this.prisma.member.findUnique({
       where: { id: memberId },
     });
@@ -25,7 +25,7 @@ export class PointsService {
     const transaction = await this.prisma.pointTransaction.create({
       data: {
         memberId,
-        placeId,
+        placeId: placeId || undefined,
         amount,
         type: TransactionType.EARN,
       },
@@ -268,8 +268,8 @@ export class PointsService {
     // 응답 DTO 변환
     const transactionItems = transactions.map((transaction) => ({
       id: transaction.id,
-      placeId: transaction.placeId,
-      placeName: transaction.place.name,
+      placeId: transaction.placeId || undefined,
+      placeName: transaction.place?.name || undefined,
       amount: transaction.amount,
       type: transaction.type,
       createdAt: transaction.createdAt,

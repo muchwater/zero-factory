@@ -1,32 +1,46 @@
 'use client'
 
 import { useState, useEffect, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import BottomNavigation from '@/components/BottomNavigation'
+import { useMember } from '@/hooks/useMember'
+import { receiptsApi } from '@/services/api'
+import { compressImage } from '@/utils/imageCompression'
 
-// useSearchParams를 사용하는 컴포넌트를 분리
+// useSearchParams를 사용하던 컴포넌트를 sessionStorage 기반으로 변경
 function ZeroReceiptContent() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState<'home' | 'search' | 'profile'>('search')
   const [productDescription, setProductDescription] = useState('')
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const { member, loading, refreshMember } = useMember()
 
-  // URL에서 사진 데이터 받기
+  // 카메라 페이지에서 sessionStorage로 전달된 사진 데이터 복원
   useEffect(() => {
-    const photoData = searchParams.get('photo')
-    if (photoData) {
-      setPhotoPreview(photoData)
-      // Data URL을 File 객체로 변환
-      fetch(photoData)
-        .then(res => res.blob())
-        .then(blob => {
-          const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' })
-          setPhoto(file)
-        })
-    }
-  }, [searchParams])
+    if (typeof window === 'undefined') return
+
+    const photoData = sessionStorage.getItem('zeroReceiptPhoto')
+    if (!photoData) return
+
+    setPhotoPreview(photoData)
+
+    // Data URL을 File 객체로 변환
+    fetch(photoData)
+      .then(res => res.blob())
+      .then(blob => {
+        const file = new File([blob], 'photo.jpg', { type: 'image/jpeg' })
+        setPhoto(file)
+      })
+      .catch(err => {
+        console.error('failed to restore photo from sessionStorage:', err)
+      })
+      .finally(() => {
+        // 한 번 사용했으면 바로 제거
+        sessionStorage.removeItem('zeroReceiptPhoto')
+      })
+  }, [])
 
   const handleTabChange = (tab: 'home' | 'search' | 'profile') => {
     setActiveTab(tab)
@@ -53,10 +67,38 @@ function ZeroReceiptContent() {
     router.push('/zero-receipt/camera')
   }
 
-  const handleSubmit = () => {
-    // TODO: 영수증 제출 로직 구현
-    console.log('제출:', { productDescription, photo })
-    alert('영수증이 제출되었습니다!')
+  const handleSubmit = async () => {
+    if (!member || !photo) {
+      alert('회원 정보를 불러오는 중입니다. 잠시 후 다시 시도해주세요.')
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      // 이미지 압축 (1200px, 70% 품질)
+      const compressedPhoto = await compressImage(photo, 1200, 0.7)
+
+      await receiptsApi.submitReceipt({
+        memberId: member.id,
+        productDescription,
+        photoFile: compressedPhoto,
+      })
+
+      // 포인트 잔액 새로고침
+      await refreshMember()
+
+      alert(`${member.nickname}님, 영수증이 제출되었습니다! 100포인트가 적립되었습니다.`)
+
+      // 폼 초기화
+      setProductDescription('')
+      setPhoto(null)
+      setPhotoPreview(null)
+    } catch (error) {
+      console.error('영수증 제출 실패:', error)
+      alert('영수증 제출에 실패했습니다. 다시 시도해주세요.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -161,20 +203,24 @@ function ZeroReceiptContent() {
 
         {/* Submit Button */}
         <div className="flex justify-center mt-8">
-          <button
-            onClick={handleSubmit}
-            disabled={!productDescription || !photo}
-            className={`
-              px-12 py-3 rounded-xl font-bold text-sm text-white
-              transition-all duration-300
-              ${productDescription && photo
-                ? 'bg-primary hover:bg-primary-dark shadow-md hover:shadow-lg'
-                : 'bg-gray-400 cursor-not-allowed'
-              }
-            `}
-          >
-            영수증 제출하기
-          </button>
+          {loading ? (
+            <div className="text-sm text-muted">회원 정보를 불러오는 중...</div>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={!productDescription || !photo || !member || submitting}
+              className={`
+                px-12 py-3 rounded-xl font-bold text-sm text-white
+                transition-all duration-300
+                ${productDescription && photo && member && !submitting
+                  ? 'bg-primary hover:bg-primary-dark shadow-md hover:shadow-lg'
+                  : 'bg-gray-400 cursor-not-allowed'
+                }
+              `}
+            >
+              {submitting ? '제출 중...' : '영수증 제출하기'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -206,4 +252,3 @@ export default function ZeroReceiptPage() {
     </Suspense>
   )
 }
-

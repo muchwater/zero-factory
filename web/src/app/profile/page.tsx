@@ -3,10 +3,12 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import BottomNavigation from '@/components/BottomNavigation'
+import { useMember } from '@/hooks/useMember'
 
 export default function ProfilePage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'home' | 'search' | 'profile'>('profile')
+  const { member, loading } = useMember()
 
   const handleTabChange = (tab: 'home' | 'search' | 'profile') => {
     setActiveTab(tab)
@@ -61,39 +63,64 @@ export default function ProfilePage() {
       <div className="bg-white border-b border-border sticky top-0 z-40 shadow-sm">
         <div className="px-4 py-3 flex items-center justify-between">
           <h1 className="text-xl font-bold text-black">ZeroFactory</h1>
-          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-            <svg
-              className="w-5 h-5 text-gray-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-              />
-            </svg>
+          <div className="flex items-center gap-2">
+            {loading ? (
+              <div className="text-sm text-gray-500">로딩 중...</div>
+            ) : member ? (
+              <div className="text-sm font-medium text-black">{member.nickname}</div>
+            ) : null}
+            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+              <svg
+                className="w-5 h-5 text-gray-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                />
+              </svg>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Content */}
       <div className="flex-1 px-3 py-4 space-y-4">
-        {/* Carbon Reduction Progress */}
+        {/* Points Balance */}
         <div className="space-y-1">
-          <p className="text-sm font-medium text-black">Carbon Reduction Progress</p>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-black">내 포인트</p>
+            <button
+              onClick={() => router.push('/receipts/history')}
+              className="text-xs text-primary hover:text-primary-dark font-medium"
+            >
+              제출 이력 보기 →
+            </button>
+          </div>
           <div className="bg-gray-100 rounded-md p-3 flex gap-5 items-center">
-            {/* 차트 이미지 영역 */}
-            <div className="w-[107px] h-[105px] bg-gray-200 rounded flex items-center justify-center">
-              <div className="text-xs text-gray-400">Chart</div>
+            <div className="w-[107px] h-[105px] bg-gradient-to-br from-green-400 to-blue-500 rounded flex flex-col items-center justify-center text-white">
+              <div className="text-xs mb-1">POINTS</div>
+              {loading ? (
+                <div className="text-sm">로딩 중...</div>
+              ) : member ? (
+                <div className="text-2xl font-bold">{member.pointBalance}</div>
+              ) : (
+                <div className="text-sm">-</div>
+              )}
             </div>
             <div className="flex-1 space-y-1">
-              <p className="text-sm text-gray-500">Total Reduction:</p>
-              <p className="text-sm font-medium text-black">120kg CO2</p>
-              <p className="text-sm text-gray-500">Monthly Goal:</p>
-              <p className="text-sm font-medium text-black">150kg CO2</p>
+              <p className="text-sm text-gray-500">닉네임:</p>
+              <p className="text-sm font-medium text-black">
+                {loading ? '로딩 중...' : member?.nickname || '-'}
+              </p>
+              <p className="text-sm text-gray-500">가입일:</p>
+              <p className="text-sm font-medium text-black">
+                {loading ? '로딩 중...' : member ? new Date(member.createdAt).toLocaleDateString('ko-KR') : '-'}
+              </p>
             </div>
           </div>
         </div>

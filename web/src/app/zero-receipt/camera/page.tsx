@@ -118,11 +118,17 @@ export default function CameraPage() {
   }
 
   const usePhoto = () => {
-    if (capturedImage) {
-      // 제로영수증 페이지로 돌아가면서 이미지 전달
-      router.push(`/zero-receipt?photo=${encodeURIComponent(capturedImage)}`)
+    if (!capturedImage) return
+
+    if (typeof window !== 'undefined') {
+      // 긴 base64 데이터를 URL로 보내지 않고, sessionStorage에 저장
+      sessionStorage.setItem('zeroReceiptPhoto', capturedImage)
     }
+
+    // 쿼리스트링 없이 단순 이동
+    router.push('/zero-receipt')
   }
+
 
   const handleBack = () => {
     stopCamera()

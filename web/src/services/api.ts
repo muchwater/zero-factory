@@ -1,6 +1,6 @@
 // API 서비스 함수들
 
-import type { Place, PlaceNearby } from '@/types/api'
+import type { Place, PlaceNearby, Member, Receipt, ReceiptHistoryResponse } from '@/types/api'
 
 // Validate that NEXT_PUBLIC_API_URL is set at build time
 if (!process.env.NEXT_PUBLIC_API_URL) {
@@ -162,6 +162,84 @@ export const adminApi = {
         'x-admin-code': adminCode,
       },
     })
+  },
+}
+
+// 회원 관련 API
+export const membersApi = {
+  // 회원 생성 또는 조회
+  findOrCreate: (params: {
+    nickname: string
+    deviceId?: string
+  }): Promise<Member> => {
+    return fetchApi<Member>('/members', {
+      method: 'POST',
+      body: JSON.stringify({
+        nickname: params.nickname,
+        deviceId: params.deviceId,
+      }),
+    })
+  },
+
+  // 회원 ID로 조회
+  getById: (memberId: string): Promise<Member> => {
+    return fetchApi<Member>(`/members/${memberId}`)
+  },
+}
+
+// 영수증 관련 API
+export const receiptsApi = {
+  // 영수증 제출
+  submitReceipt: async (params: {
+    memberId: string
+    productDescription: string
+    photoFile: File
+    verificationResult?: any
+    placeId?: number
+  }): Promise<Receipt> => {
+    const formData = new FormData()
+    formData.append('photo', params.photoFile)
+    formData.append('productDescription', params.productDescription)
+    if (params.verificationResult) {
+      formData.append('verificationResult', JSON.stringify(params.verificationResult))
+    }
+    if (params.placeId) {
+      formData.append('placeId', params.placeId.toString())
+    }
+
+    const response = await fetch(`${API_BASE_URL}/members/${params.memberId}/receipts`, {
+      method: 'POST',
+      body: formData, // FormData는 Content-Type 자동 설정
+    })
+
+    if (!response.ok) {
+      throw new ApiError(response.status, `HTTP error! status: ${response.status}`)
+    }
+
+    return response.json()
+  },
+
+  // 제출 이력 조회
+  getSubmissionHistory: (params: {
+    memberId: string
+    page?: number
+    limit?: number
+    status?: 'PENDING' | 'APPROVED' | 'REJECTED'
+  }): Promise<ReceiptHistoryResponse> => {
+    const searchParams = new URLSearchParams({
+      page: (params.page || 1).toString(),
+      limit: (params.limit || 20).toString(),
+      ...(params.status && { status: params.status }),
+    })
+
+    return fetchApi<ReceiptHistoryResponse>(
+      `/members/${params.memberId}/receipts?${searchParams}`
+    )
+  },
+
+  // 영수증 상세 조회
+  getReceiptById: (receiptId: number): Promise<Receipt> => {
+    return fetchApi<Receipt>(`/receipts/${receiptId}`)
   },
 }
 
