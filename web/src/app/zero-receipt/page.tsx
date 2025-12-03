@@ -33,8 +33,7 @@ function ZeroReceiptContent() {
     if (tab === 'home') {
       router.push('/')
     } else if (tab === 'profile') {
-      // 프로필 페이지로 이동 (필요시 추가)
-      router.push('/')
+      router.push('/profile')
     }
   }
 

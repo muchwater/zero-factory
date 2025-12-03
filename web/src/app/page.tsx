@@ -138,8 +138,7 @@ export default function Home() {
     if (tab === 'search') {
       router.push('/zero-receipt')
     } else if (tab === 'profile') {
-      // 프로필 페이지로 이동 (필요시 추가)
-      // router.push('/profile')
+      router.push('/profile')
     }
   }
 
