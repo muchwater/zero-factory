@@ -11,6 +11,8 @@ export default function CameraPage() {
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment')
   const [capturedImage, setCapturedImage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [isVerifying, setIsVerifying] = useState(false)
+  const [verificationResult, setVerificationResult] = useState<any>(null)
 
   useEffect(() => {
     startCamera()
@@ -51,7 +53,7 @@ export default function CameraPage() {
     setFacingMode(prev => prev === 'user' ? 'environment' : 'user')
   }
 
-  const capturePhoto = () => {
+  const capturePhoto = async () => {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current
       const canvas = canvasRef.current
@@ -61,16 +63,57 @@ export default function CameraPage() {
         canvas.width = video.videoWidth
         canvas.height = video.videoHeight
         ctx.drawImage(video, 0, 0)
-        
+
         const imageDataUrl = canvas.toDataURL('image/jpeg')
         setCapturedImage(imageDataUrl)
         stopCamera()
+
+        // 자동으로 AI 검증 시작
+        await verifyContainer(imageDataUrl)
       }
+    }
+  }
+
+  const verifyContainer = async (imageDataUrl: string) => {
+    setIsVerifying(true)
+    setError(null)
+
+    try {
+      // Data URL을 Blob으로 변환
+      const response = await fetch(imageDataUrl)
+      const blob = await response.blob()
+
+      // FormData 생성
+      const formData = new FormData()
+      formData.append('file', blob, 'photo.jpg')
+
+      // AI API 호출 (프로덕션: https://ai.zeromap.store, 개발: http://localhost:8000)
+      const AI_API_URL = typeof window !== 'undefined' && window.location.hostname === 'localhost'
+        ? 'http://localhost:8000'
+        : 'https://ai.zeromap.store'
+      const aiResponse = await fetch(`${AI_API_URL}/container/verify`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!aiResponse.ok) {
+        throw new Error('AI 검증에 실패했습니다')
+      }
+
+      const result = await aiResponse.json()
+      setVerificationResult(result)
+    } catch (err) {
+      console.error('AI 검증 오류:', err)
+      setError('AI 검증 중 오류가 발생했습니다. 다시 시도해주세요.')
+    } finally {
+      setIsVerifying(false)
     }
   }
 
   const retakePhoto = () => {
     setCapturedImage(null)
+    setVerificationResult(null)
+    setError(null)
     startCamera()
   }
 
@@ -104,45 +147,143 @@ export default function CameraPage() {
 
   if (capturedImage) {
     return (
-      <div className="bg-black min-h-screen flex flex-col">
+      <div className="bg-black h-screen flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="bg-white/10 backdrop-blur-sm border-b border-white/20 sticky top-0 z-40">
+        <div className="bg-white/10 backdrop-blur-sm border-b border-white/20 z-40 flex-shrink-0">
           <div className="px-4 py-3 flex items-center justify-between">
             <button
               onClick={retakePhoto}
-              className="text-white text-lg font-medium"
+              className="text-white text-sm font-medium"
             >
               다시 촬영
             </button>
-            <h1 className="text-xl font-bold text-white">사진 확인</h1>
+            <h1 className="text-lg font-bold text-white">
+              {isVerifying ? 'AI 검증 중...' : verificationResult ? 'AI 검증 결과' : '사진 확인'}
+            </h1>
             <div className="w-16" /> {/* Spacer */}
           </div>
         </div>
 
-        {/* Captured Image */}
-        <div className="flex-1 flex items-center justify-center p-4">
-          <img
-            src={capturedImage}
-            alt="Captured"
-            className="max-w-full max-h-full rounded-lg"
-          />
+        {/* Content Area - Scrollable */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="flex flex-col items-center p-4 pb-24">
+            {/* Captured Image */}
+            <img
+              src={capturedImage}
+              alt="Captured"
+              className="w-full max-w-sm rounded-lg mb-4 object-contain"
+              style={{ maxHeight: '40vh' }}
+            />
+
+            {/* Loading State */}
+            {isVerifying && (
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center w-full max-w-sm">
+                <div className="animate-spin w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+                <p className="text-white font-medium">AI가 검증하는 중입니다...</p>
+                <p className="text-white/60 text-sm mt-2">잠시만 기다려주세요</p>
+              </div>
+            )}
+
+            {/* Verification Result */}
+            {!isVerifying && verificationResult && (
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 w-full max-w-sm">
+                {/* Success: Reusable Container with Beverage */}
+                {verificationResult.is_reusable && verificationResult.beverage_status === 'Yes' && (
+                  <div className="text-center">
+                    <div className="text-6xl mb-4">✅</div>
+                    <h2 className="text-xl font-bold text-green-400 mb-2">검증 성공!</h2>
+                    <p className="text-white/80 mb-4 text-sm">다회용기에 음료가 담긴 것을 확인했습니다</p>
+                    <div className="space-y-2 text-xs text-white/60">
+                      <p>• 다회용기 신뢰도: {(verificationResult.reusable_confidence * 100).toFixed(1)}%</p>
+                      <p>• 음료 감지 신뢰도: {(verificationResult.beverage_confidence * 100).toFixed(1)}%</p>
+                      {verificationResult.container_class && (
+                        <p>• 용기 종류: {verificationResult.container_class === 'cup' ? '컵' : '병'}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Success: Reusable Container but No Beverage */}
+                {verificationResult.is_reusable && verificationResult.beverage_status === 'No' && (
+                  <div className="text-center">
+                    <div className="text-5xl mb-4">⚠️</div>
+                    <h2 className="text-xl font-bold text-yellow-400 mb-2">음료가 없습니다</h2>
+                    <p className="text-white/80 mb-4 text-sm">다회용기이지만 음료가 담겨있지 않습니다</p>
+                    <div className="space-y-2 text-xs text-white/60">
+                      <p>• 다회용기 신뢰도: {(verificationResult.reusable_confidence * 100).toFixed(1)}%</p>
+                      <p>• 음료 없음 신뢰도: {(verificationResult.beverage_confidence * 100).toFixed(1)}%</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Success: Reusable Container but Unclear Beverage */}
+                {verificationResult.is_reusable && verificationResult.beverage_status === 'Unclear' && (
+                  <div className="text-center">
+                    <div className="text-5xl mb-4">🤔</div>
+                    <h2 className="text-xl font-bold text-blue-400 mb-2">음료 확인 불가</h2>
+                    <p className="text-white/80 mb-4 text-sm">다회용기이나 음료 유무를 명확히 판단할 수 없습니다</p>
+                    <div className="space-y-2 text-xs text-white/60">
+                      <p>• 다회용기 신뢰도: {(verificationResult.reusable_confidence * 100).toFixed(1)}%</p>
+                      <p>더 선명한 사진을 다시 촬영해주세요</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Failure: Not Reusable */}
+                {verificationResult.container_detected && !verificationResult.is_reusable && (
+                  <div className="text-center">
+                    <div className="text-5xl mb-4">❌</div>
+                    <h2 className="text-xl font-bold text-red-400 mb-2">일회용기 감지</h2>
+                    <p className="text-white/80 mb-4 text-sm">일회용 용기로 판단됩니다</p>
+                    <div className="space-y-2 text-xs text-white/60">
+                      <p>• 일회용기 신뢰도: {(verificationResult.reusable_confidence * 100).toFixed(1)}%</p>
+                      <p>다회용기를 사용해주세요</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Failure: No Container Detected */}
+                {!verificationResult.container_detected && (
+                  <div className="text-center">
+                    <div className="text-5xl mb-4">🔍</div>
+                    <h2 className="text-xl font-bold text-red-400 mb-2">용기를 찾을 수 없습니다</h2>
+                    <p className="text-white/80 mb-4 text-sm">사진에서 용기가 감지되지 않았습니다</p>
+                    <p className="text-xs text-white/60">컵이나 병을 더 선명하게 촬영해주세요</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Error State */}
+            {!isVerifying && error && (
+              <div className="bg-red-500/20 backdrop-blur-sm rounded-xl p-6 w-full max-w-sm">
+                <div className="text-center">
+                  <div className="text-5xl mb-4">⚠️</div>
+                  <h2 className="text-xl font-bold text-red-400 mb-2">오류 발생</h2>
+                  <p className="text-white/80 text-sm">{error}</p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="bg-gradient-to-t from-black/90 to-transparent p-6 pb-12">
-          <div className="flex gap-4 justify-center">
+        {/* Action Buttons - Fixed at bottom */}
+        <div className="bg-gradient-to-t from-black via-black/95 to-transparent p-4 flex-shrink-0 absolute bottom-0 left-0 right-0">
+          <div className="flex gap-3 justify-center max-w-md mx-auto">
             <button
               onClick={retakePhoto}
-              className="px-6 py-3 bg-white/20 text-white rounded-xl font-medium"
+              className="flex-1 px-4 py-3 bg-white/20 text-white rounded-xl font-medium text-sm active:bg-white/30"
             >
               다시 촬영
             </button>
-            <button
-              onClick={usePhoto}
-              className="px-6 py-3 bg-primary text-white rounded-xl font-bold"
-            >
-              이 사진 사용
-            </button>
+            {verificationResult?.is_reusable && verificationResult?.beverage_status === 'Yes' && (
+              <button
+                onClick={usePhoto}
+                className="flex-1 px-4 py-3 bg-green-500 text-white rounded-xl font-bold text-sm active:bg-green-600"
+              >
+                이 사진 사용
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -150,9 +291,9 @@ export default function CameraPage() {
   }
 
   return (
-    <div className="bg-black min-h-screen flex flex-col relative">
+    <div className="bg-black h-screen flex flex-col relative overflow-hidden">
       {/* Header */}
-      <div className="bg-white/10 backdrop-blur-sm border-b border-white/20 sticky top-0 z-40">
+      <div className="bg-white/10 backdrop-blur-sm border-b border-white/20 z-40 flex-shrink-0">
         <div className="px-4 py-3 flex items-center justify-between">
           <button
             onClick={handleBack}
@@ -202,56 +343,42 @@ export default function CameraPage() {
           playsInline
           className="w-full h-full object-cover"
         />
-        
+
         {/* Framing Guides */}
         <div className="absolute inset-0 pointer-events-none">
           {/* Corner guides */}
-          <div className="absolute top-8 left-8 w-8 h-8 border-t-2 border-l-2 border-white" />
-          <div className="absolute top-8 right-8 w-8 h-8 border-t-2 border-r-2 border-white" />
-          <div className="absolute bottom-32 left-8 w-8 h-8 border-b-2 border-l-2 border-white" />
-          <div className="absolute bottom-32 right-8 w-8 h-8 border-b-2 border-r-2 border-white" />
+          <div className="absolute top-4 left-4 w-6 h-6 border-t-2 border-l-2 border-white" />
+          <div className="absolute top-4 right-4 w-6 h-6 border-t-2 border-r-2 border-white" />
+          <div className="absolute bottom-24 left-4 w-6 h-6 border-b-2 border-l-2 border-white" />
+          <div className="absolute bottom-24 right-4 w-6 h-6 border-b-2 border-r-2 border-white" />
         </div>
 
         {/* Instruction Text */}
-        <div className="absolute bottom-40 left-0 right-0 text-center">
-          <p className="text-red-500 font-bold text-base">
-            조금만 더 기울여주세요!
+        <div className="absolute bottom-32 left-0 right-0 text-center px-4">
+          <p className="text-white font-bold text-base bg-black/50 py-2 px-4 rounded-lg inline-block">
+            컵 내부가 보이게 찍어주세요
           </p>
         </div>
       </div>
 
-      {/* Bottom Controls */}
-      <div className="bg-gradient-to-t from-black/90 to-transparent p-6 pb-12">
-        <div className="flex items-center justify-between">
-          {/* Menu Button */}
-          <button className="w-12 h-12 flex items-center justify-center">
-            <svg
-              className="w-6 h-6 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
-              />
-            </svg>
-          </button>
+      {/* Bottom Controls - Fixed height and positioning */}
+      <div className="bg-gradient-to-t from-black/90 to-transparent p-4 pb-6 flex-shrink-0">
+        <div className="flex items-center justify-between max-w-md mx-auto">
+          {/* Menu Button - Hidden for cleaner UI */}
+          <div className="w-12 h-12" />
 
           {/* Shutter Button */}
           <button
             onClick={capturePhoto}
-            className="w-20 h-20 rounded-full bg-white border-4 border-gray-300 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+            className="w-16 h-16 rounded-full bg-white border-4 border-gray-300 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
           >
-            <div className="w-16 h-16 rounded-full bg-white" />
+            <div className="w-12 h-12 rounded-full bg-white" />
           </button>
 
           {/* Rotate Button */}
           <button
             onClick={switchCamera}
-            className="w-12 h-12 flex items-center justify-center"
+            className="w-12 h-12 flex items-center justify-center bg-white/10 rounded-full active:bg-white/20"
           >
             <svg
               className="w-6 h-6 text-white"
