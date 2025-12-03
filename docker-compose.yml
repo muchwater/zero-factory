@@ -106,6 +106,29 @@ services:
       - app-network
     restart: unless-stopped
 
+  jupyter:
+    build:
+      context: ./ai-server
+      dockerfile: Dockerfile.jupyter
+    container_name: jupyter-notebook
+    profiles:
+      - dev
+    ports:
+      - "8888:8888"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DEVICE=cpu
+    volumes:
+      - ./ai-server:/app
+      - ./ai-server/models/weights:/app/models/weights
+      - ./ai-server/training_outputs:/app/training_outputs
+      - ./ai-server/data:/app/data
+      - ./ai-server/data_preprocessed:/app/data_preprocessed
+      - ./ai-server/dataset_output:/app/dataset_output
+    networks:
+      - ai-network
+    restart: unless-stopped
+
 networks:
   app-network:
     driver: bridge
