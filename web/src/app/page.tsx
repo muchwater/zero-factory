@@ -8,6 +8,7 @@ import CategoryCard from '@/components/CategoryCard'
 import PlaceCard from '@/components/PlaceCard'
 import BottomNavigation from '@/components/BottomNavigation'
 import MapOverlay from '@/components/MapOverlay'
+import PlaceDetailSheet from '@/components/PlaceDetailSheet'
 import { usePlaces } from '@/hooks/usePlaces'
 import type { Place, PlaceNearby } from '@/types/api'
 
@@ -260,6 +261,12 @@ export default function Home() {
       <BottomNavigation 
         activeTab={activeTab}
         onTabChange={handleTabChange}
+      />
+
+      {/* Place Detail Sheet */}
+      <PlaceDetailSheet
+        place={selectedPlace}
+        onClose={() => setSelectedPlace(null)}
       />
     </div>
   )

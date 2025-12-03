@@ -17,14 +17,14 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #ffffff;
+    --foreground: #171717;
     --primary: #34d399;
     --primary-dark: #10b981;
-    --secondary: #1f2937;
+    --secondary: #f3f4f6;
     --accent: #fbbf24;
-    --text-muted: #9ca3af;
-    --border: #374151;
+    --text-muted: #6b7280;
+    --border: #e5e7eb;
   }
 }
 

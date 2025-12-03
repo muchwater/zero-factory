@@ -1,14 +1,42 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import BottomNavigation from '@/components/BottomNavigation'
 import { useMember } from '@/hooks/useMember'
+import { receiptsApi } from '@/services/api'
+import type { Receipt } from '@/types/api'
 
 export default function ProfilePage() {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'home' | 'search' | 'profile'>('profile')
   const { member, loading } = useMember()
+  const [receipts, setReceipts] = useState<Receipt[]>([])
+  const [receiptsLoading, setReceiptsLoading] = useState(false)
+  const [showAllReceipts, setShowAllReceipts] = useState(false)
+
+  // 적립 내역 로드
+  useEffect(() => {
+    if (!member) return
+
+    const loadReceipts = async () => {
+      setReceiptsLoading(true)
+      try {
+        const response = await receiptsApi.getSubmissionHistory({
+          memberId: member.id,
+          page: 1,
+          limit: 20,
+        })
+        setReceipts(response.receipts)
+      } catch (error) {
+        console.error('Failed to load receipts:', error)
+      } finally {
+        setReceiptsLoading(false)
+      }
+    }
+
+    loadReceipts()
+  }, [member])
 
   const handleTabChange = (tab: 'home' | 'search' | 'profile') => {
     setActiveTab(tab)
@@ -19,43 +47,53 @@ export default function ProfilePage() {
     }
   }
 
-  // 최근 방문 장소 데이터 (실제로는 API에서 가져와야 함)
-  const recentVisits = [
-    {
-      id: 1,
-      name: 'Eco-friendly Store',
-      icon: '♻️',
-      visitedAt: 'Visited Today',
-    },
-    {
-      id: 2,
-      name: 'RVM Station',
-      icon: '🗑️',
-      visitedAt: 'Visited 3 days ago',
-    },
-    {
-      id: 3,
-      name: 'Local Refill Shop',
-      icon: '🏪',
-      visitedAt: 'Visited on July 13th',
-    },
-  ]
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'APPROVED':
+        return (
+          <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">
+            승인
+          </span>
+        )
+      case 'PENDING':
+        return (
+          <span className="px-2 py-0.5 text-xs font-medium bg-yellow-100 text-yellow-700 rounded-full">
+            대기
+          </span>
+        )
+      case 'REJECTED':
+        return (
+          <span className="px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 rounded-full">
+            거부
+          </span>
+        )
+      default:
+        return null
+    }
+  }
 
-  // 획득한 보상 데이터 (실제로는 API에서 가져와야 함)
-  const rewardsClaimed = [
-    {
-      id: 1,
-      name: 'Eco Warrior Badge',
-      icon: '🏆',
-      claimedAt: 'Claimed on Sep 20th',
-    },
-    {
-      id: 2,
-      name: 'Reusable Bag Gift',
-      icon: '🎁',
-      claimedAt: 'Claimed on Sep 15th',
-    },
-  ]
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffTime = Math.abs(now.getTime() - date.getTime())
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+
+    if (diffDays === 0) {
+      return '오늘'
+    } else if (diffDays === 1) {
+      return '어제'
+    } else if (diffDays < 7) {
+      return `${diffDays}일 전`
+    } else {
+      return date.toLocaleDateString('ko-KR', {
+        month: 'short',
+        day: 'numeric',
+      })
+    }
+  }
+
+  // 표시할 적립 내역 (기본 3개, 더보기 시 전체)
+  const displayedReceipts = showAllReceipts ? receipts : receipts.slice(0, 3)
 
   return (
     <div className="bg-white min-h-screen flex flex-col pb-20">
@@ -92,15 +130,7 @@ export default function ProfilePage() {
       <div className="flex-1 px-3 py-4 space-y-4">
         {/* Points Balance */}
         <div className="space-y-1">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-black">내 포인트</p>
-            <button
-              onClick={() => router.push('/receipts/history')}
-              className="text-xs text-primary hover:text-primary-dark font-medium"
-            >
-              제출 이력 보기 →
-            </button>
-          </div>
+          <p className="text-sm font-medium text-black">내 포인트</p>
           <div className="bg-gray-100 rounded-md p-3 flex gap-5 items-center">
             <div className="w-[107px] h-[105px] bg-gradient-to-br from-green-400 to-blue-500 rounded flex flex-col items-center justify-center text-white">
               <div className="text-xs mb-1">POINTS</div>
@@ -125,56 +155,88 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Recent Visits */}
-        <div className="space-y-4">
-          <div className="pt-4">
-            <p className="text-lg font-medium text-black">Recent Visits</p>
-          </div>
-          <div className="space-y-0">
-            {recentVisits.map((visit, index) => (
-              <div
-                key={visit.id}
-                className={`
-                  flex gap-2 items-center py-3
-                  ${index < recentVisits.length - 1 ? 'border-b border-gray-200' : ''}
-                `}
+        {/* 적립 내역 */}
+        <div className="space-y-3">
+          <div className="pt-4 flex items-center justify-between">
+            <p className="text-lg font-medium text-black">적립 내역</p>
+            {receipts.length > 3 && (
+              <button
+                onClick={() => setShowAllReceipts(!showAllReceipts)}
+                className="text-xs text-primary hover:text-primary-dark font-medium"
               >
-                <div className="w-10 h-10 rounded-2xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-                  <span className="text-xl">{visit.icon}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-black">{visit.name}</p>
-                  <p className="text-xs text-gray-500">{visit.visitedAt}</p>
-                </div>
-              </div>
-            ))}
+                {showAllReceipts ? '접기' : `더보기 (${receipts.length})`}
+              </button>
+            )}
           </div>
+
+          {receiptsLoading ? (
+            <div className="py-8 text-center text-gray-500 text-sm">
+              적립 내역을 불러오는 중...
+            </div>
+          ) : receipts.length === 0 ? (
+            <div className="py-8 text-center">
+              <div className="text-4xl mb-3">📋</div>
+              <p className="text-gray-500 text-sm mb-4">아직 적립 내역이 없습니다.</p>
+              <button
+                onClick={() => router.push('/zero-receipt')}
+                className="px-6 py-2 bg-primary text-white text-sm rounded-lg hover:bg-primary-dark transition-colors"
+              >
+                첫 적립하러 가기
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-0">
+              {displayedReceipts.map((receipt, index) => (
+                <div
+                  key={receipt.id}
+                  className={`
+                    flex gap-3 items-center py-3
+                    ${index < displayedReceipts.length - 1 ? 'border-b border-gray-200' : ''}
+                  `}
+                >
+                  <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
+                    <span className="text-lg">☕</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <p className="text-sm font-medium text-black truncate">
+                        {receipt.productDescription || '다회용기 사용'}
+                      </p>
+                      {getStatusBadge(receipt.status)}
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <span>{formatDate(receipt.createdAt)}</span>
+                      <span>•</span>
+                      <span className="text-green-600 font-medium">+{receipt.pointsEarned}P</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Rewards Claimed */}
-        <div className="bg-gray-100 rounded-2xl p-3 space-y-4">
-          <div className="pt-2">
-            <p className="text-lg font-medium text-black">Rewards Claimed</p>
-          </div>
-          <div className="space-y-0">
-            {rewardsClaimed.map((reward, index) => (
-              <div
-                key={reward.id}
-                className={`
-                  flex gap-2 items-center py-3
-                  ${index < rewardsClaimed.length - 1 ? 'border-b border-gray-300' : ''}
-                `}
-              >
-                <div className="w-8 h-8 rounded-2xl bg-white flex items-center justify-center flex-shrink-0">
-                  <span className="text-xl">{reward.icon}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-black">{reward.name}</p>
-                  <p className="text-xs text-gray-500">{reward.claimedAt}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+        {/* 적립하기 버튼 */}
+        <div className="pt-4">
+          <button
+            onClick={() => router.push('/zero-receipt')}
+            className="w-full py-3 bg-primary text-white font-bold rounded-xl hover:bg-primary-dark transition-colors flex items-center justify-center gap-2"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+            포인트 적립하기
+          </button>
         </div>
       </div>
 
@@ -186,4 +248,3 @@ export default function ProfilePage() {
     </div>
   )
 }
-

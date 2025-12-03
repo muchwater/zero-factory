@@ -126,6 +126,20 @@ export const healthApi = {
   },
 }
 
+// 회원 (어드민용) 타입
+export interface AdminMember {
+  id: string
+  nickname: string
+  pointBalance: number
+  lastReceiptAt: string | null
+  receiptRestricted: boolean
+  createdAt: string
+  _count: {
+    receipts: number
+  }
+  receipts3Days: number  // 최근 3일 적립 수 (이상 적립 감지용)
+}
+
 // 어드민 API
 export const adminApi = {
   // Pending 장소 목록 조회
@@ -157,6 +171,35 @@ export const adminApi = {
   // 장소 거부 (INACTIVE로 변경)
   rejectPlace: (id: number, adminCode: string): Promise<Place> => {
     return fetchApi<Place>(`/admin/places/${id}/reject`, {
+      method: 'PUT',
+      headers: {
+        'x-admin-code': adminCode,
+      },
+    })
+  },
+
+  // 전체 회원 목록 조회
+  getAllMembers: (adminCode: string): Promise<AdminMember[]> => {
+    return fetchApi<AdminMember[]>('/admin/members', {
+      headers: {
+        'x-admin-code': adminCode,
+      },
+    })
+  },
+
+  // 회원 적립 제한 설정
+  restrictMember: (memberId: string, adminCode: string): Promise<AdminMember> => {
+    return fetchApi<AdminMember>(`/admin/members/${memberId}/restrict`, {
+      method: 'PUT',
+      headers: {
+        'x-admin-code': adminCode,
+      },
+    })
+  },
+
+  // 회원 적립 제한 해제
+  unrestrictMember: (memberId: string, adminCode: string): Promise<AdminMember> => {
+    return fetchApi<AdminMember>(`/admin/members/${memberId}/unrestrict`, {
       method: 'PUT',
       headers: {
         'x-admin-code': adminCode,

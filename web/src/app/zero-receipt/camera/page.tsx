@@ -2,6 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { getCurrentPosition } from '@/utils/location'
+import { placesApi } from '@/services/api'
+import type { PlaceNearby } from '@/types/api'
 
 export default function CameraPage() {
   const router = useRouter()
@@ -13,6 +16,9 @@ export default function CameraPage() {
   const [error, setError] = useState<string | null>(null)
   const [isVerifying, setIsVerifying] = useState(false)
   const [verificationResult, setVerificationResult] = useState<any>(null)
+  const [isCheckingLocation, setIsCheckingLocation] = useState(false)
+  const [nearbyPlaces, setNearbyPlaces] = useState<PlaceNearby[]>([])
+  const [locationError, setLocationError] = useState<string | null>(null)
 
   useEffect(() => {
     startCamera()
@@ -117,16 +123,41 @@ export default function CameraPage() {
     startCamera()
   }
 
-  const usePhoto = () => {
+  const usePhoto = async () => {
     if (!capturedImage) return
 
-    if (typeof window !== 'undefined') {
-      // 긴 base64 데이터를 URL로 보내지 않고, sessionStorage에 저장
-      sessionStorage.setItem('zeroReceiptPhoto', capturedImage)
-    }
+    setIsCheckingLocation(true)
+    setLocationError(null)
 
-    // 쿼리스트링 없이 단순 이동
-    router.push('/zero-receipt')
+    try {
+      // 1. 현재 위치 가져오기
+      const currentPosition = await getCurrentPosition()
+
+      // 2. 100m 이내 다회용기 지점 조회 (RENT 타입만) - 있으면 표시용으로 저장
+      const places = await placesApi.getPlacesNearby({
+        lat: currentPosition.lat,
+        lng: currentPosition.lng,
+        radius: 100,
+        types: ['RENT'],
+      })
+
+      // 3. sessionStorage에 데이터 저장 (등록된 장소가 없어도 진행 가능)
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('zeroReceiptPhoto', capturedImage)
+        sessionStorage.setItem('zeroReceiptNearbyPlaces', JSON.stringify(places))
+        sessionStorage.setItem('zeroReceiptVerificationResult', JSON.stringify(verificationResult))
+        // 현재 위치 저장 (검색된 장소의 거리 계산용)
+        sessionStorage.setItem('zeroReceiptCurrentPosition', JSON.stringify(currentPosition))
+      }
+
+      // 4. 적립 페이지로 이동
+      router.push('/zero-receipt')
+    } catch (err) {
+      console.error('위치 확인 오류:', err)
+      setLocationError(err instanceof Error ? err.message : '위치 확인 중 오류가 발생했습니다.')
+    } finally {
+      setIsCheckingLocation(false)
+    }
   }
 
 
@@ -153,7 +184,7 @@ export default function CameraPage() {
 
   if (capturedImage) {
     return (
-      <div className="bg-black h-screen flex flex-col overflow-hidden">
+      <div className="bg-black flex flex-col overflow-hidden" style={{ height: '100dvh' }}>
         {/* Header */}
         <div className="bg-white/10 backdrop-blur-sm border-b border-white/20 z-40 flex-shrink-0">
           <div className="px-4 py-3 flex items-center justify-between">
@@ -270,6 +301,26 @@ export default function CameraPage() {
                 </div>
               </div>
             )}
+
+            {/* Location Checking State */}
+            {isCheckingLocation && (
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center w-full max-w-sm mt-4">
+                <div className="animate-spin w-12 h-12 border-4 border-blue-400 border-t-transparent rounded-full mx-auto mb-4"></div>
+                <p className="text-white font-medium">위치를 확인하는 중입니다...</p>
+                <p className="text-white/60 text-sm mt-2">GPS 신호를 기다리고 있습니다</p>
+              </div>
+            )}
+
+            {/* Location Error State */}
+            {locationError && !isCheckingLocation && (
+              <div className="bg-orange-500/20 backdrop-blur-sm rounded-xl p-6 w-full max-w-sm mt-4">
+                <div className="text-center">
+                  <div className="text-5xl mb-4">📍</div>
+                  <h2 className="text-xl font-bold text-orange-400 mb-2">위치 확인 실패</h2>
+                  <p className="text-white/80 text-sm">{locationError}</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -278,16 +329,18 @@ export default function CameraPage() {
           <div className="flex gap-3 justify-center max-w-md mx-auto">
             <button
               onClick={retakePhoto}
-              className="flex-1 px-4 py-3 bg-white/20 text-white rounded-xl font-medium text-sm active:bg-white/30"
+              disabled={isCheckingLocation}
+              className="flex-1 px-4 py-3 bg-white/20 text-white rounded-xl font-medium text-sm active:bg-white/30 disabled:opacity-50"
             >
               다시 촬영
             </button>
             {verificationResult?.is_reusable && verificationResult?.beverage_status === 'Yes' && (
               <button
                 onClick={usePhoto}
-                className="flex-1 px-4 py-3 bg-green-500 text-white rounded-xl font-bold text-sm active:bg-green-600"
+                disabled={isCheckingLocation}
+                className="flex-1 px-4 py-3 bg-green-500 text-white rounded-xl font-bold text-sm active:bg-green-600 disabled:opacity-50 disabled:bg-green-700"
               >
-                이 사진 사용
+                {isCheckingLocation ? '확인 중...' : '위치 확인 후 적립'}
               </button>
             )}
           </div>
@@ -297,7 +350,7 @@ export default function CameraPage() {
   }
 
   return (
-    <div className="bg-black h-screen flex flex-col relative overflow-hidden">
+    <div className="bg-black flex flex-col relative overflow-hidden" style={{ height: '100dvh' }}>
       {/* Header */}
       <div className="bg-white/10 backdrop-blur-sm border-b border-white/20 z-40 flex-shrink-0">
         <div className="px-4 py-3 flex items-center justify-between">

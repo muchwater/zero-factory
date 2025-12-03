@@ -74,6 +74,13 @@ export class ReceiptsController {
     @Body() dto: CreateReceiptDto,
     @UploadedFile() file: Express.Multer.File,
   ): Promise<ReceiptResponseDto> {
+    console.log('📝 Receipt submission request:', {
+      memberId,
+      dto,
+      hasFile: !!file,
+      fileSize: file?.size,
+      fileName: file?.originalname,
+    });
     return this.receiptsService.create(memberId, dto, file);
   }
 

@@ -91,11 +91,13 @@ model StoreOpeningHourException {
 }
 
 model Member {
-  id           String   @id @default(uuid()) // UUID로 보안 강화
-  nickname     String   @unique
-  deviceId     String?  @unique
-  pointBalance Int      @default(0)
-  createdAt    DateTime @default(now())
+  id                String    @id @default(uuid()) // UUID로 보안 강화
+  nickname          String    @unique
+  deviceId          String?   @unique
+  pointBalance      Int       @default(0)
+  lastReceiptAt     DateTime? // 마지막 영수증 적립 시간 (쿨다운 체크용)
+  receiptRestricted Boolean   @default(false) // 적립 제한 여부 (관리자 제어)
+  createdAt         DateTime  @default(now())
 
   transactions PointTransaction[]
   receipts     Receipt[]

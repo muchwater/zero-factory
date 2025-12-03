@@ -67,6 +67,8 @@ export interface Member {
   nickname: string
   deviceId: string | null
   pointBalance: number
+  lastReceiptAt: string | null  // 마지막 적립 시간
+  receiptRestricted: boolean    // 적립 제한 여부
   createdAt: string
 }
 
