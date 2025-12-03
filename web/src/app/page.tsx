@@ -147,8 +147,8 @@ export default function Home() {
       {/* Header */}
       <div className="bg-white border-b border-border sticky top-0 z-40">
         <div className="px-4 py-3">
-          <h1 className="text-xl font-bold text-black text-center">제로팩토리</h1>
-          <p className="text-sm text-muted text-center mt-1">친환경 라이프스타일 가이드</p>
+          <h1 className="text-xl font-bold text-black text-center">ZEROMAP</h1>
+          <p className="text-sm text-muted text-center mt-1">간편한 제로웨이스트 라이프 가이드</p>
         </div>
       </div>
 
