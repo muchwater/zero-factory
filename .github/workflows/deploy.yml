@@ -26,31 +26,69 @@ jobs:
             echo "📥 Pulling latest code from GitHub..."
             git pull origin main
 
-            echo "🔨 Building main services Docker containers..."
-            docker compose build
+            echo "🔍 Detecting changed services..."
+            CHANGED_FILES=$(git diff --name-only HEAD@{1} HEAD 2>/dev/null || echo "")
 
-            echo "🚀 Restarting main services..."
-            docker compose up -d --force-recreate
+            # 변경된 서비스 확인
+            BUILD_API=false
+            BUILD_WEB=false
+            BUILD_AI=false
 
-            echo "🤖 Building AI Server containers..."
-            cd ai-server
-            docker compose build
-            docker compose up -d --force-recreate
-            cd ..
+            if echo "$CHANGED_FILES" | grep -q "^server/"; then
+              BUILD_API=true
+              echo "  → API server changed"
+            fi
 
-            echo "🔄 Restarting nginx to apply latest configuration..."
-            docker restart nginx
+            if echo "$CHANGED_FILES" | grep -q "^web/"; then
+              BUILD_WEB=true
+              echo "  → Web frontend changed"
+            fi
+
+            if echo "$CHANGED_FILES" | grep -q "^ai-server/"; then
+              BUILD_AI=true
+              echo "  → AI server changed (⚠️  build may take 10+ minutes)"
+            fi
+
+            # 변경된 서비스만 빌드
+            if [ "$BUILD_API" = true ]; then
+              echo "🔨 Building API server..."
+              docker compose build api
+            fi
+
+            if [ "$BUILD_WEB" = true ]; then
+              echo "🔨 Building Web frontend..."
+              docker compose build web
+            fi
+
+            if [ "$BUILD_AI" = true ]; then
+              echo "🔨 Building AI server (this may take a while)..."
+              docker compose build ai-server
+            fi
+
+            # nginx나 docker-compose.yml 변경 시
+            if echo "$CHANGED_FILES" | grep -q -E "^(nginx/|docker-compose\.yml)"; then
+              echo "🔨 Infrastructure changed, rebuilding all services..."
+              docker compose build
+            fi
+
+            # 변경사항이 없으면 빌드 스킵
+            if [ "$BUILD_API" = false ] && [ "$BUILD_WEB" = false ] && [ "$BUILD_AI" = false ]; then
+              echo "ℹ️  No service code changes detected, skipping build"
+            fi
+
+            echo "🚀 Deploying all services..."
+            docker compose up -d
 
             echo "⏳ Waiting for services to stabilize..."
-            sleep 15
+            if [ "$BUILD_AI" = true ]; then
+              echo "  → AI server was rebuilt, waiting 30 seconds for model loading..."
+              sleep 30
+            else
+              sleep 15
+            fi
 
             echo "🔍 Checking service health..."
-            echo "Main services:"
             docker compose ps
-            echo ""
-            echo "AI services:"
-            cd ai-server && docker compose ps && cd ..
-            echo ""
 
             echo "✅ Checking nginx configuration..."
             docker exec nginx nginx -t || echo "⚠️  Nginx configuration test failed"
@@ -59,14 +97,17 @@ jobs:
             docker exec zero-factory-api-1 wget -q -O- http://localhost:3000/health || echo "⚠️  API health check failed"
 
             echo "✅ Checking AI Server health endpoint (internal)..."
-            docker exec ai-model-server wget -q -O- http://localhost:8000/ || echo "⚠️  AI Server health check failed"
+            docker exec ai-model-server wget -q -O- http://localhost:8000/health || echo "⚠️  AI Server health check failed"
 
-            echo "✅ Checking Label Studio (internal)..."
-            docker exec ai-label-studio wget -q -O- http://localhost:8080/ || echo "⚠️  Label Studio health check failed"
+            echo "✅ Checking PostgreSQL database..."
+            docker exec postgresdb pg_isready -U ${POSTGRES_USER:-postgres} || echo "⚠️  Database check failed"
 
             echo "✅ Checking public HTTPS endpoints..."
             curl -k -f https://localhost/ || echo "⚠️  Main site HTTPS check failed"
             curl -k -f https://localhost/api/health || echo "⚠️  API via nginx check failed"
+
+            echo "🧹 Cleaning up unused Docker resources..."
+            docker system prune -f
 
             echo "🎉 Deployment completed!"
 
