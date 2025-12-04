@@ -264,6 +264,8 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
             border: 3px solid white;
             border-radius: 50%;
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            z-index: 1000;
+            position: relative;
           "></div>
         `
 
@@ -271,7 +273,8 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
           position: new window.kakao.maps.LatLng(location.lat, location.lng),
           content: markerContent,
           yAnchor: 0.5,
-          xAnchor: 0.5
+          xAnchor: 0.5,
+          zIndex: 1000  // GPS 마커를 다른 마커 위에 표시
         })
 
         overlay.setMap(mapInstanceRef.current)
@@ -323,7 +326,8 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
               ${markerContent}
             </div>
           `,
-          yAnchor: 1.2
+          yAnchor: 1.2,
+          zIndex: 100  // 가게 마커는 GPS 마커보다 낮은 zIndex
         })
 
         overlay.setMap(mapInstanceRef.current)
