@@ -87,6 +87,18 @@ async def verify_container(file: UploadFile = File(...)):
         # ===== Step 1: 컨테이너 감지 및 크롭 =====
         detection_result = container_detector.detect_and_crop(image_bytes)
 
+        # Annotated image 생성 (bbox가 있는 경우)
+        annotated_image_base64 = None
+        bbox = None
+        if detection_result['container_detected'] and detection_result['bbox']:
+            bbox = detection_result['bbox']
+            annotated_image_base64 = container_detector.draw_bbox(
+                image_bytes,
+                bbox,
+                detection_result['class_name'],
+                detection_result['confidence']
+            )
+
         # 검출 실패 시 원본 이미지를 그대로 사용 (false negative 방지)
         if not detection_result['container_detected']:
             print(f"⚠️  Detection failed, using original image as fallback")
@@ -105,6 +117,9 @@ async def verify_container(file: UploadFile = File(...)):
         # ===== Step 2: 다회용기 검증 =====
         reusable_result = reusable_classifier.predict(cropped_bytes)
 
+        # 용기 감지 실패 시 더 높은 confidence 요구 (원본 이미지는 배경 등이 포함되어 정확도가 낮을 수 있음)
+        required_confidence = 0.7 if detection_result['container_detected'] else 0.85
+
         if not reusable_result['is_reusable']:
             return ContainerVerificationResponse(
                 container_detected=detection_result['container_detected'],
@@ -114,11 +129,29 @@ async def verify_container(file: UploadFile = File(...)):
                 message=f"Not a reusable container (confidence: {reusable_result['confidence']:.1%})",
                 error="Disposable container detected",
                 container_class=container_class,
-                container_confidence=container_confidence
+                container_confidence=container_confidence,
+                bbox=bbox,
+                annotated_image_base64=annotated_image_base64
+            )
+
+        # 다회용기로 분류되었지만 confidence가 낮으면 거부
+        if reusable_result['confidence'] < required_confidence:
+            return ContainerVerificationResponse(
+                container_detected=detection_result['container_detected'],
+                num_containers=detection_result['num_containers'],
+                is_reusable=False,
+                reusable_confidence=reusable_result['confidence'],
+                message=f"Low confidence for reusable classification (confidence: {reusable_result['confidence']:.1%}, required: {required_confidence:.1%})",
+                error="Insufficient confidence in reusable classification",
+                container_class=container_class,
+                container_confidence=container_confidence,
+                bbox=bbox,
+                annotated_image_base64=annotated_image_base64
             )
 
         # ===== Step 3: 음료 검증 =====
-        beverage_result = beverage_detector.predict(cropped_bytes, unclear_threshold=0.7)
+        # Lower threshold to minimize false negatives (0.5 = only truly ambiguous cases marked "Unclear")
+        beverage_result = beverage_detector.predict(cropped_bytes, unclear_threshold=0.5)
 
         return ContainerVerificationResponse(
             container_detected=detection_result['container_detected'],
@@ -131,7 +164,9 @@ async def verify_container(file: UploadFile = File(...)):
             message=f"Container verified: {beverage_result['beverage_status']} beverage (confidence: {beverage_result['confidence']:.1%})",
             error=None,
             container_class=container_class,
-            container_confidence=container_confidence
+            container_confidence=container_confidence,
+            bbox=bbox,
+            annotated_image_base64=annotated_image_base64
         )
 
     except Exception as e:

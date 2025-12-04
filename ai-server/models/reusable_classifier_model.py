@@ -8,22 +8,22 @@ import torch.nn as nn
 from torchvision import models, transforms
 from PIL import Image
 import io
+import timm
 
 
 class ReusableClassifier(nn.Module):
-    """다회용기 분류 모델 (EfficientNet-B0 기반)"""
+    """다회용기 분류 모델 (ResNetV2-101 BiT 기반)"""
 
-    def __init__(self, num_classes=2):
+    def __init__(self, num_classes=2, pretrained=False):
         super(ReusableClassifier, self).__init__()
 
-        # EfficientNet-B0 백본
-        self.backbone = models.efficientnet_b0(pretrained=False)
-
-        # 마지막 FC layer 교체
-        in_features = self.backbone.classifier[1].in_features
-        self.backbone.classifier = nn.Sequential(
-            nn.Dropout(p=0.3),
-            nn.Linear(in_features, num_classes)
+        # ResNetV2-101 BiT (Big Transfer) 백본
+        # ImageNet-21K (14M images, 21K classes) → ImageNet-1K fine-tuned
+        self.backbone = timm.create_model(
+            'resnetv2_101x1_bit.goog_in21k_ft_in1k',
+            pretrained=pretrained,
+            num_classes=num_classes,
+            drop_rate=0.3
         )
 
     def forward(self, x):

@@ -1,0 +1,22 @@
+{
+  "model_name": "reusable_classifier",
+  "architecture": "ResNetV2-101 BiT (ImageNet-21K pretrained)",
+  "timm_model": "resnetv2_101x1_bit.goog_in21k_ft_in1k",
+  "num_classes": 2,
+  "classes": [
+    "disposable",
+    "reusable"
+  ],
+  "img_size": 224,
+  "batch_size": 8,
+  "epochs_trained": 14,
+  "learning_rate": 0.0001,
+  "best_val_loss": 0.21354506203871487,
+  "best_val_acc": 98.18181818181819,
+  "train_samples": 216,
+  "val_samples": 55,
+  "class_counts": [
+    63,
+    153
+  ]
+}

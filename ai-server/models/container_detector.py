@@ -4,10 +4,11 @@ Detects and crops bottle/cup containers from images
 """
 
 import torch
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import io
 from ultralytics import YOLO
 import numpy as np
+import base64
 
 
 class ContainerDetector:
@@ -191,3 +192,64 @@ class ContainerDetector:
         # 크롭
         cropped = image.crop((x1, y1, x2, y2))
         return cropped
+
+    def draw_bbox(self, image_bytes: bytes, bbox: list, class_name: str, confidence: float) -> str:
+        """
+        이미지에 bounding box를 그리고 base64로 인코딩합니다.
+
+        Args:
+            image_bytes: 원본 이미지 바이트
+            bbox: [x1, y1, x2, y2]
+            class_name: 클래스 이름
+            confidence: 신뢰도
+
+        Returns:
+            base64 인코딩된 이미지 문자열
+        """
+        try:
+            # 이미지 로드
+            image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
+            draw = ImageDraw.Draw(image)
+
+            x1, y1, x2, y2 = bbox
+
+            # Bounding box 그리기 (초록색, 굵은 선)
+            box_color = (0, 255, 0)  # 초록색
+            box_width = max(3, int(min(image.size) * 0.005))  # 이미지 크기에 비례한 선 굵기
+
+            draw.rectangle([x1, y1, x2, y2], outline=box_color, width=box_width)
+
+            # 레이블 텍스트 (클래스명 + 신뢰도)
+            label = f"{class_name} {confidence:.2f}"
+
+            # 텍스트 배경 박스 그리기
+            try:
+                # 기본 폰트 사용 (시스템에 따라 다를 수 있음)
+                font_size = max(12, int(min(image.size) * 0.02))
+                font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
+            except:
+                # 폰트 로드 실패 시 기본 폰트 사용
+                font = ImageFont.load_default()
+
+            # 텍스트 크기 계산
+            text_bbox = draw.textbbox((x1, y1), label, font=font)
+            text_width = text_bbox[2] - text_bbox[0]
+            text_height = text_bbox[3] - text_bbox[1]
+
+            # 텍스트 배경 박스
+            text_bg_bbox = [x1, y1 - text_height - 10, x1 + text_width + 10, y1]
+            draw.rectangle(text_bg_bbox, fill=box_color)
+
+            # 텍스트 그리기 (흰색)
+            draw.text((x1 + 5, y1 - text_height - 5), label, fill=(255, 255, 255), font=font)
+
+            # 이미지를 base64로 인코딩
+            buffer = io.BytesIO()
+            image.save(buffer, format='JPEG', quality=95)
+            img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+
+            return img_base64
+
+        except Exception as e:
+            print(f"Error drawing bbox: {e}")
+            return None

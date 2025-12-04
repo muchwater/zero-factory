@@ -30,6 +30,10 @@ class ContainerVerificationResponse(BaseModel):
     container_class: Optional[str] = Field(None, description="감지된 컨테이너 클래스 (bottle, cup)")
     container_confidence: Optional[float] = Field(None, description="컨테이너 감지 신뢰도", ge=0, le=1)
 
+    # Bounding box 정보
+    bbox: Optional[List[int]] = Field(None, description="감지된 컨테이너의 bounding box [x1, y1, x2, y2]")
+    annotated_image_base64: Optional[str] = Field(None, description="Bounding box가 그려진 이미지 (base64 인코딩)")
+
     class Config:
         schema_extra = {
             "example": {
