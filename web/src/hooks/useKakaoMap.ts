@@ -46,7 +46,7 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
       return
     }
 
-    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${apiKey}&autoload=false`
+    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${apiKey}&autoload=true`
     script.async = true
     
     script.onload = () => {
@@ -72,22 +72,20 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
 
     const initializeMap = () => {
       try {
-        window.kakao.maps.load(() => {
-          if (mapRef.current && !mapInstanceRef.current) {
-            const mapOptions = {
-              center: new window.kakao.maps.LatLng(
-                options.center?.lat || 37.5665,
-                options.center?.lng || 126.9780
-              ),
-              level: options.level || 3
-            }
-            
-            const map = new window.kakao.maps.Map(mapRef.current, mapOptions)
-            mapInstanceRef.current = map
-            setIsLoading(false)
-            console.log('카카오맵 초기화 완료')
+        if (mapRef.current && !mapInstanceRef.current) {
+          const mapOptions = {
+            center: new window.kakao.maps.LatLng(
+              options.center?.lat || 37.5665,
+              options.center?.lng || 126.9780
+            ),
+            level: options.level || 3
           }
-        })
+
+          const map = new window.kakao.maps.Map(mapRef.current, mapOptions)
+          mapInstanceRef.current = map
+          setIsLoading(false)
+          console.log('카카오맵 초기화 완료')
+        }
       } catch (err) {
         setError(`맵 초기화에 실패했습니다: ${err instanceof Error ? err.message : '알 수 없는 오류'}`)
         setIsLoading(false)
