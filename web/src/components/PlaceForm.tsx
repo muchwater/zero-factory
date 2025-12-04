@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import CategoryCard from './CategoryCard'
 
 interface PlaceFormProps {
   onSubmit: (data: any) => void
@@ -52,10 +51,10 @@ export default function PlaceForm({ onSubmit, isSubmitting = false }: PlaceFormP
   }, [])
 
   const facilityTypes = [
-    { id: 'reusable-container', label: '리유저블 컨테이너', icon: 'recycle' as const, type: 'RENT', description: '재사용 컵을 사용하는 친환경 카페' },
-    { id: 'rvm', label: 'RVM', icon: 'recycle' as const, type: 'RETURN', description: '사용한 컵을 반납할 수 있는 곳' },
-    { id: 'incentive', label: '인센티브', icon: 'store' as const, type: 'BONUS', description: '텀블러 사용 시 포인트를 적립받는 매장' },
-    { id: 'tumbler-cleaner', label: '텀블러 세척기', icon: 'wash' as const, type: 'CLEAN', description: '텀블러를 깨끗하게 세척할 수 있는 곳' }
+    { id: 'reusable-container', label: '리유저블 컨테이너', icon: '♻️', type: 'RENT' },
+    { id: 'rvm', label: 'RVM', icon: '🗑️', type: 'RETURN' },
+    { id: 'incentive', label: '인센티브', icon: '🏪', type: 'BONUS' },
+    { id: 'tumbler-cleaner', label: '텀블러 세척기', icon: '🧼', type: 'CLEAN' }
   ]
 
   // 시설 종류에 따라 자동으로 type이 설정되므로 serviceOptions는 더 이상 필요 없음
@@ -194,22 +193,76 @@ export default function PlaceForm({ onSubmit, isSubmitting = false }: PlaceFormP
   return (
     <div className="space-y-3">
       {/* 시설 종류 */}
-      <div className="space-y-3">
+      <div className="space-y-1">
         <p className="text-sm font-medium text-black">시설 종류</p>
         
-        {/* 카테고리 카드 그리드 */}
-        <div className="grid grid-cols-2 gap-3">
-          {facilityTypes.map((facility) => (
-            <CategoryCard
-              key={facility.id}
-              title={facility.label}
-              icon={facility.icon}
-              description={facility.description}
-              isActive={formData.facilityType === facility.id}
-              onClick={() => handleInputChange('facilityType', facility.id)}
-            />
-          ))}
+        {/* 첫 번째 행 */}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => handleInputChange('facilityType', 'reusable-container')}
+            className={`flex-1 flex items-center gap-2 p-3 rounded-md border transition-colors ${
+              formData.facilityType === 'reusable-container'
+                ? 'border-black bg-gray-50'
+                : 'border-gray-300 hover:border-gray-400'
+            }`}
+          >
+            <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+              <span className="text-lg">♻️</span>
+            </div>
+            <span className="text-sm font-extrabold text-black">리유저블 컨테이너</span>
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => handleInputChange('facilityType', 'rvm')}
+            className={`flex-1 flex items-center gap-2 p-3 rounded-md border transition-colors ${
+              formData.facilityType === 'rvm'
+                ? 'border-black bg-gray-50'
+                : 'border-gray-300 hover:border-gray-400'
+            }`}
+          >
+            <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+              <span className="text-lg">🗑️</span>
+            </div>
+            <span className="text-sm font-medium text-black">RVM</span>
+          </button>
         </div>
+
+        {/* 두 번째 행 */}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => handleInputChange('facilityType', 'incentive')}
+            className={`flex-1 flex items-center gap-2 p-3 rounded-md border transition-colors ${
+              formData.facilityType === 'incentive'
+                ? 'border-black bg-gray-50'
+                : 'border-gray-300 hover:border-gray-400'
+            }`}
+          >
+            <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+              <span className="text-lg">🏪</span>
+            </div>
+            <span className="text-sm font-medium text-black">인센티브</span>
+          </button>
+          
+          <button
+            type="button"
+            onClick={() => handleInputChange('facilityType', 'tumbler-cleaner')}
+            className={`flex-1 flex items-center gap-2 p-3 rounded-md border transition-colors ${
+              formData.facilityType === 'tumbler-cleaner'
+                ? 'border-black bg-gray-50'
+                : 'border-gray-300 hover:border-gray-400'
+            }`}
+          >
+            <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+              <span className="text-lg">🧼</span>
+            </div>
+            <span className="text-sm font-medium text-black">텀블러 세척기</span>
+          </button>
+        </div>
+
+        {/* 서비스 옵션 제거 - 시설 종류에 따라 자동 설정됨 */}
       </div>
 
       {/* 서비스명 (리유저블 컨테이너 또는 RVM 선택 시만 표시) */}

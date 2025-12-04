@@ -18,6 +18,8 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [selectedPlace, setSelectedPlace] = useState<Place | PlaceNearby | null>(null)
+  const [searchQuery, setSearchQuery] = useState<string>('')
+  const [searchResults, setSearchResults] = useState<Place[]>([])
 
   // 기본 위치 (대전 유성구)
   const defaultLocation = { lat: 36.3731, lng: 127.362 }
@@ -87,10 +89,60 @@ export default function Home() {
     'wash': 'CLEAN',
   }
 
-  // 선택된 카테고리에 따라 장소 필터링
-  const filteredPlaces = selectedCategory
-    ? places.filter(place => place.types.includes(categoryToType[selectedCategory] as any))
-    : places
+  // 검색어에 따라 장소 필터링
+  const getFilteredPlaces = () => {
+    let filtered = places
+
+    // 검색어 필터링
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim()
+      filtered = filtered.filter(place => 
+        place.name.toLowerCase().includes(query) ||
+        place.address.toLowerCase().includes(query) ||
+        (place.description && place.description.toLowerCase().includes(query))
+      )
+    }
+
+    // 카테고리 필터링
+    if (selectedCategory) {
+      filtered = filtered.filter(place => place.types.includes(categoryToType[selectedCategory] as any))
+    }
+
+    return filtered
+  }
+
+  const filteredPlaces = getFilteredPlaces()
+
+  // 연관 검색어 계산 (검색어와 유사한 장소명 추천)
+  const getSearchSuggestions = (): string[] => {
+    if (!searchQuery.trim() || searchQuery.length < 1) {
+      return []
+    }
+
+    const query = searchQuery.toLowerCase().trim()
+    const suggestions = new Set<string>()
+
+    // 장소명에서 검색어로 시작하거나 포함하는 경우
+    places.forEach(place => {
+      const name = place.name.toLowerCase()
+      if (name.includes(query) && name !== query) {
+        suggestions.add(place.name)
+      }
+    })
+
+    // 주소에서 검색어를 포함하는 경우
+    places.forEach(place => {
+      const address = place.address.toLowerCase()
+      if (address.includes(query) && !suggestions.has(place.name)) {
+        suggestions.add(place.name)
+      }
+    })
+
+    // 최대 5개까지만 반환
+    return Array.from(suggestions).slice(0, 5)
+  }
+
+  const searchSuggestions = getSearchSuggestions()
 
   // API에서 가져온 장소 데이터를 PlaceCard 형식으로 변환
   const displayPlaces = filteredPlaces.map((place) => ({
@@ -106,7 +158,45 @@ export default function Home() {
   }))
 
   const handleSearch = (value: string) => {
-    console.log('검색:', value)
+    setSearchQuery(value)
+    
+    // 검색어가 있으면 해당 장소로 지도 이동
+    if (value.trim()) {
+      const query = value.toLowerCase().trim()
+      const foundPlace = places.find(place => 
+        place.name.toLowerCase().includes(query) ||
+        place.address.toLowerCase().includes(query)
+      )
+      
+      if (foundPlace && foundPlace.location) {
+        // 검색된 장소로 지도 중심 이동 (KakaoMap 컴포넌트가 center prop 변경을 감지하도록)
+        setUserLocation({
+          lat: foundPlace.location.lat,
+          lng: foundPlace.location.lng
+        })
+        setSearchResults([foundPlace])
+      } else {
+        setSearchResults([])
+      }
+    } else {
+      setSearchResults([])
+      // 검색어가 없으면 원래 위치로 복귀
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setUserLocation({
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            })
+          },
+          () => {
+            setUserLocation(defaultLocation)
+          }
+        )
+      } else {
+        setUserLocation(defaultLocation)
+      }
+    }
   }
 
   const handleCategoryClick = (categoryId: string) => {
@@ -154,10 +244,13 @@ export default function Home() {
       </div>
 
       {/* Search Section */}
-      <div className="px-4 py-4 bg-white">
+      <div className="px-4 py-4 bg-white relative">
         <SearchBar 
           placeholder="상점명 또는 지역명으로 검색..."
           onSearch={handleSearch}
+          value={searchQuery}
+          suggestions={searchSuggestions}
+          onSuggestionClick={(suggestion) => handleSearch(suggestion)}
         />
       </div>
 
