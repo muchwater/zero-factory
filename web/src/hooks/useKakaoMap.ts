@@ -30,9 +30,26 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
     // 기존 스크립트 태그가 있는지 확인
     const existingScript = document.querySelector('script[src*="dapi.kakao.com"]')
     if (existingScript) {
+      // 이미 로드되었는지 확인
+      if (checkScript()) {
+        return
+      }
+      // 로드 중이면 완료를 기다림
       existingScript.addEventListener('load', () => {
-        checkScript()
+        setTimeout(() => {
+          checkScript()
+        }, 100)
       })
+      // 이미 로드되었을 수도 있으므로 주기적으로 확인
+      const checkInterval = setInterval(() => {
+        if (checkScript()) {
+          clearInterval(checkInterval)
+        }
+      }, 100)
+      // 최대 5초 대기
+      setTimeout(() => {
+        clearInterval(checkInterval)
+      }, 5000)
       return
     }
 
@@ -46,7 +63,7 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
       return
     }
 
-    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${apiKey}&autoload=true`
+    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${apiKey}&autoload=false`
     script.async = true
     
     script.onload = () => {
@@ -72,20 +89,22 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
 
     const initializeMap = () => {
       try {
-        if (mapRef.current && !mapInstanceRef.current) {
-          const mapOptions = {
-            center: new window.kakao.maps.LatLng(
-              options.center?.lat || 37.5665,
-              options.center?.lng || 126.9780
-            ),
-            level: options.level || 3
+        window.kakao.maps.load(() => {
+          if (mapRef.current && !mapInstanceRef.current) {
+            const mapOptions = {
+              center: new window.kakao.maps.LatLng(
+                options.center?.lat || 37.5665,
+                options.center?.lng || 126.9780
+              ),
+              level: options.level || 3
+            }
+            
+            const map = new window.kakao.maps.Map(mapRef.current, mapOptions)
+            mapInstanceRef.current = map
+            setIsLoading(false)
+            console.log('카카오맵 초기화 완료')
           }
-
-          const map = new window.kakao.maps.Map(mapRef.current, mapOptions)
-          mapInstanceRef.current = map
-          setIsLoading(false)
-          console.log('카카오맵 초기화 완료')
-        }
+        })
       } catch (err) {
         setError(`맵 초기화에 실패했습니다: ${err instanceof Error ? err.message : '알 수 없는 오류'}`)
         setIsLoading(false)
@@ -262,7 +281,7 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
             border: 3px solid white;
             border-radius: 50%;
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            z-index: 1000;
+            z-index: 10000;
             position: relative;
           "></div>
         `
@@ -272,13 +291,13 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
           content: markerContent,
           yAnchor: 0.5,
           xAnchor: 0.5,
-          zIndex: 1000  // GPS 마커를 다른 마커 위에 표시
+          zIndex: 10000  // GPS 마커를 가장 위에 표시
         })
 
         overlay.setMap(mapInstanceRef.current)
         userLocationMarkerRef.current = overlay
         console.log('GPS 위치 마커 추가:', location.lat, location.lng)
-      }, 200)
+      }, 100)
 
       return () => clearTimeout(timer)
     }
@@ -319,47 +338,27 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
         const overlay = new window.kakao.maps.CustomOverlay({
           position: new window.kakao.maps.LatLng(markerData.lat, markerData.lng),
           content: `
-            <div id="${markerId}" style="${styleString}; cursor: pointer;" class="marker-overlay" data-place-id="${markerData.placeId || ''}">
+            <div id="${markerId}" style="${styleString}; cursor: pointer; z-index: 100;" class="marker-overlay" data-place-id="${markerData.placeId || ''}">
               ${plusIcon}
               ${markerContent}
             </div>
           `,
           yAnchor: 1.2,
-          zIndex: 100  // 가게 마커는 GPS 마커보다 낮은 zIndex
+          zIndex: 100  // 가게 마커는 GPS 마커보다 낮은 z-index
         })
 
         overlay.setMap(mapInstanceRef.current)
         markersRef.current.push(overlay)
 
-        // 클릭 이벤트 추가 (카카오맵 이벤트 시스템 사용)
+        // DOM이 렌더링된 후 클릭 이벤트 추가
         if (markerData.onClick) {
           const clickHandler = markerData.onClick
-          
-          // DOM이 렌더링될 때까지 대기 후 이벤트 추가
-          const addClickListener = () => {
+          setTimeout(() => {
             const element = document.getElementById(markerId)
-            if (element) {
-              // 클릭 이벤트 핸들러 (이벤트 버블링 방지)
-              const handleClick = (e: MouseEvent) => {
-                e.preventDefault()
-                e.stopPropagation()
-                clickHandler()
-              }
-              
-              // 기존 이벤트 리스너가 있다면 제거
-              element.removeEventListener('click', handleClick)
-              // 새 이벤트 리스너 추가
-              element.addEventListener('click', handleClick)
-              
-              console.log('마커 클릭 이벤트 추가 완료:', markerData.title)
-            } else {
-              // DOM이 아직 준비되지 않았으면 재시도
-              setTimeout(addClickListener, 100)
+            if (element && clickHandler) {
+              element.addEventListener('click', clickHandler)
             }
-          }
-          
-          // 약간의 지연을 두어 DOM이 완전히 렌더링된 후 이벤트 추가
-          setTimeout(addClickListener, 200)
+          }, 100)
         }
 
         console.log('마커 생성 완료:', markerData.title, 'at', markerData.lat, markerData.lng)
