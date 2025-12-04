@@ -1,17 +1,37 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Place, PlaceNearby } from '@/types/api'
+import { calculateDistance, type Coordinates } from '@/utils/location'
 
 interface PlaceDetailSheetProps {
   place: Place | PlaceNearby | null
   onClose: () => void
+  userLocation?: Coordinates | null
 }
 
-export default function PlaceDetailSheet({ place, onClose }: PlaceDetailSheetProps) {
+export default function PlaceDetailSheet({ place, onClose, userLocation }: PlaceDetailSheetProps) {
   const router = useRouter()
   const sheetRef = useRef<HTMLDivElement>(null)
+  
+  // GPS 위치와 가게 위치 간 거리 계산
+  const [isWithinRange, setIsWithinRange] = useState<boolean>(false)
+  
+  useEffect(() => {
+    if (!place || !place.location || !userLocation) {
+      setIsWithinRange(false)
+      return
+    }
+    
+    const distance = calculateDistance(
+      { lat: place.location.lat, lng: place.location.lng },
+      { lat: userLocation.lat, lng: userLocation.lng }
+    )
+    
+    // 100m 이내면 활성화
+    setIsWithinRange(distance <= 100)
+  }, [place, userLocation])
 
   // ESC 키로 닫기
   useEffect(() => {
@@ -190,10 +210,18 @@ export default function PlaceDetailSheet({ place, onClose }: PlaceDetailSheetPro
             </button>
             <button
               onClick={() => {
-                onClose()
-                router.push('/zero-receipt')
+                if (isWithinRange) {
+                  onClose()
+                  router.push('/zero-receipt')
+                }
               }}
-              className="flex-1 py-3 bg-primary text-white font-medium rounded-xl hover:bg-primary-dark transition-colors flex items-center justify-center gap-2"
+              disabled={!isWithinRange}
+              className={`flex-1 py-3 font-medium rounded-xl transition-colors flex items-center justify-center gap-2 ${
+                isWithinRange
+                  ? 'bg-primary text-white hover:bg-primary-dark'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+              title={!isWithinRange ? '100m 이내에서만 제로영수증을 사용할 수 있습니다' : ''}
             >
               <svg
                 className="w-5 h-5"

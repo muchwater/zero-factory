@@ -361,6 +361,7 @@ export default function Home() {
       <PlaceDetailSheet
         place={selectedPlace}
         onClose={() => setSelectedPlace(null)}
+        userLocation={userLocation}
       />
     </div>
   )
