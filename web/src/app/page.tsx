@@ -265,6 +265,7 @@ export default function Home() {
                 level={3}
                 places={filteredPlaces}
                 onPlaceClick={handleMapPlaceClick}
+                userLocation={userLocation || undefined}
               />
               <MapOverlay
                 onFilterClick={handleFilterClick}

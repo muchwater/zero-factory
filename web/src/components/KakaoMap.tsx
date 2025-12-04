@@ -14,6 +14,7 @@ interface KakaoMapProps {
   level?: number
   places?: Place[] | PlaceNearby[]
   onPlaceClick?: (place: Place | PlaceNearby) => void
+  userLocation?: { lat: number; lng: number }
 }
 
 export default function KakaoMap({ 
@@ -23,11 +24,13 @@ export default function KakaoMap({
   center,
   level,
   places = [],
-  onPlaceClick
+  onPlaceClick,
+  userLocation
 }: KakaoMapProps) {
   const { mapRef, mapInstance, isLoading, error, addMarkers, setLevel } = useKakaoMap({
     center,
-    level
+    level,
+    userLocation
   })
 
   // API 데이터를 기반으로 마커 생성

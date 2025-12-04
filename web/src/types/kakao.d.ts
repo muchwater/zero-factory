@@ -44,6 +44,10 @@ export interface KakaoMapOptions {
     lng: number
   }
   level?: number
+  userLocation?: {
+    lat: number
+    lng: number
+  }
 }
 
 export {}

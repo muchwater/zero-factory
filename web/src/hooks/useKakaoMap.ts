@@ -232,6 +232,47 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
     markersRef.current = []
   }
 
+  // GPS 위치 마커 (빨간 점)
+  const userLocationMarkerRef = useRef<any>(null)
+
+  // userLocation 변경 시 GPS 마커 업데이트
+  useEffect(() => {
+    if (!mapInstanceRef.current || !window.kakao) return
+
+    const location = options.userLocation
+
+    // 기존 GPS 마커 제거
+    if (userLocationMarkerRef.current) {
+      userLocationMarkerRef.current.setMap(null)
+      userLocationMarkerRef.current = null
+    }
+
+    // GPS 위치가 있으면 빨간 점 마커 추가
+    if (location) {
+      const markerContent = `
+        <div style="
+          width: 16px;
+          height: 16px;
+          background: #FF0000;
+          border: 3px solid white;
+          border-radius: 50%;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        "></div>
+      `
+
+      const overlay = new window.kakao.maps.CustomOverlay({
+        position: new window.kakao.maps.LatLng(location.lat, location.lng),
+        content: markerContent,
+        yAnchor: 0.5,
+        xAnchor: 0.5
+      })
+
+      overlay.setMap(mapInstanceRef.current)
+      userLocationMarkerRef.current = overlay
+      console.log('GPS 위치 마커 추가:', location.lat, location.lng)
+    }
+  }, [options.userLocation?.lat, options.userLocation?.lng, isScriptLoaded])
+
   // 마커 추가 함수
   const addMarkers = (markers: MarkerData[]) => {
     if (!mapInstanceRef.current || !window.kakao) {
@@ -239,7 +280,7 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
       return
     }
 
-    // 기존 마커 제거
+    // 기존 마커 제거 (GPS 마커는 제외)
     clearMarkers()
 
     console.log('마커 추가 시작:', markers.length, '개')
