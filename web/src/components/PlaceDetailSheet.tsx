@@ -14,9 +14,23 @@ interface PlaceDetailSheetProps {
 export default function PlaceDetailSheet({ place, onClose, userLocation }: PlaceDetailSheetProps) {
   const router = useRouter()
   const sheetRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const headerRef = useRef<HTMLDivElement>(null)
+  const touchStartY = useRef<number>(0)
+  const touchStartScrollTop = useRef<number>(0)
+  const isDragging = useRef<boolean>(false)
+  const currentTranslateY = useRef<number>(0)
   
   // GPS 위치와 가게 위치 간 거리 계산
   const [isWithinRange, setIsWithinRange] = useState<boolean>(false)
+  const [dragOffset, setDragOffset] = useState<number>(0)
+  
+  // place가 변경되면 dragOffset 리셋
+  useEffect(() => {
+    setDragOffset(0)
+    isDragging.current = false
+    currentTranslateY.current = 0
+  }, [place])
   
   useEffect(() => {
     if (!place || !place.location || !userLocation) {
@@ -47,6 +61,142 @@ export default function PlaceDetailSheet({ place, onClose, userLocation }: Place
   // 배경 클릭 시 닫기
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
+      onClose()
+    }
+  }
+
+  // 스크롤로 닫기 기능
+  useEffect(() => {
+    const contentElement = contentRef.current
+    if (!contentElement) return
+
+    let lastScrollTop = 0
+    let isScrollingDown = false
+
+    const handleScroll = () => {
+      const currentScrollTop = contentElement.scrollTop
+      const scrollHeight = contentElement.scrollHeight
+      const clientHeight = contentElement.clientHeight
+
+      // 아래로 스크롤 중인지 확인
+      isScrollingDown = currentScrollTop > lastScrollTop
+      lastScrollTop = currentScrollTop
+
+      // 맨 아래에 있고, 아래로 스크롤하려고 할 때 닫기
+      if (
+        currentScrollTop + clientHeight >= scrollHeight - 10 && // 거의 맨 아래
+        isScrollingDown
+      ) {
+        // 약간의 지연을 두어 자연스럽게 닫기
+        setTimeout(() => {
+          onClose()
+        }, 100)
+      }
+    }
+
+    contentElement.addEventListener('scroll', handleScroll)
+    return () => contentElement.removeEventListener('scroll', handleScroll)
+  }, [onClose])
+
+  // 헤더 영역 드래그로 닫기
+  const handleHeaderTouchStart = (e: React.TouchEvent) => {
+    if (contentRef.current && contentRef.current.scrollTop > 0) {
+      // 콘텐츠가 스크롤되어 있으면 드래그 비활성화
+      return
+    }
+    isDragging.current = true
+    touchStartY.current = e.touches[0].clientY
+    currentTranslateY.current = 0
+  }
+
+  const handleHeaderTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging.current || !sheetRef.current) return
+
+    const currentY = e.touches[0].clientY
+    const deltaY = currentY - touchStartY.current
+
+    // 아래로만 드래그 가능
+    if (deltaY > 0) {
+      currentTranslateY.current = deltaY
+      setDragOffset(deltaY)
+    }
+  }
+
+  const handleHeaderTouchEnd = () => {
+    if (!isDragging.current) return
+
+    // 100px 이상 드래그했으면 닫기
+    if (currentTranslateY.current > 100) {
+      onClose()
+    } else {
+      // 아니면 원래 위치로 복귀
+      setDragOffset(0)
+    }
+
+    isDragging.current = false
+    currentTranslateY.current = 0
+  }
+
+  // 마우스 드래그 지원 (데스크톱)
+  const handleHeaderMouseDown = (e: React.MouseEvent) => {
+    if (contentRef.current && contentRef.current.scrollTop > 0) {
+      return
+    }
+    isDragging.current = true
+    touchStartY.current = e.clientY
+    currentTranslateY.current = 0
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current || !sheetRef.current) return
+      const currentY = e.clientY
+      const deltaY = currentY - touchStartY.current
+      if (deltaY > 0) {
+        currentTranslateY.current = deltaY
+        setDragOffset(deltaY)
+      }
+    }
+
+    const handleMouseUp = () => {
+      if (!isDragging.current) return
+      if (currentTranslateY.current > 100) {
+        onClose()
+      } else {
+        setDragOffset(0)
+      }
+      isDragging.current = false
+      currentTranslateY.current = 0
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+  }
+
+
+  // 터치 제스처로 닫기 (모바일 - 하단 스크롤)
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (isDragging.current) return
+    touchStartY.current = e.touches[0].clientY
+    if (contentRef.current) {
+      touchStartScrollTop.current = contentRef.current.scrollTop
+    }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!contentRef.current || isDragging.current) return
+
+    const currentY = e.touches[0].clientY
+    const deltaY = currentY - touchStartY.current
+    const scrollTop = contentRef.current.scrollTop
+    const scrollHeight = contentRef.current.scrollHeight
+    const clientHeight = contentRef.current.clientHeight
+
+    // 맨 아래에 있고, 아래로 드래그할 때 닫기
+    if (
+      scrollTop + clientHeight >= scrollHeight - 10 &&
+      deltaY > 50
+    ) {
       onClose()
     }
   }
@@ -89,100 +239,97 @@ export default function PlaceDetailSheet({ place, onClose, userLocation }: Place
       {/* 바텀시트 */}
       <div
         ref={sheetRef}
-        className="relative w-full max-w-lg bg-white rounded-t-3xl shadow-2xl animate-slide-up"
+        className="relative w-full max-w-lg bg-white rounded-t-3xl shadow-2xl animate-slide-up max-h-[90vh]"
         style={{
-          animation: 'slideUp 0.3s ease-out',
+          animation: dragOffset === 0 ? 'slideUp 0.3s ease-out' : 'none',
+          transform: dragOffset > 0 ? `translateY(${dragOffset}px)` : 'none',
+          transition: dragOffset === 0 ? 'transform 0.2s ease-out' : 'none',
         }}
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* 핸들 바 */}
+        {/* 드래그 핸들 바 */}
         <div className="flex justify-center pt-3 pb-2">
           <div className="w-10 h-1 bg-gray-300 rounded-full" />
         </div>
 
-        {/* 닫기 버튼 */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
-          aria-label="닫기"
+        {/* 헤더 (드래그 가능 영역) */}
+        <div
+          ref={headerRef}
+          className="flex items-center justify-between px-2 py-3 cursor-grab active:cursor-grabbing select-none"
+          onTouchStart={handleHeaderTouchStart}
+          onTouchMove={handleHeaderTouchMove}
+          onTouchEnd={handleHeaderTouchEnd}
+          onMouseDown={handleHeaderMouseDown}
         >
-          <svg
-            className="w-4 h-4 text-gray-600"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
+            <h2 className="text-xl font-medium text-black">{place.name}</h2>
+            <div className="flex items-center gap-2">
+              <button className="w-6 h-6 flex items-center justify-center text-base">
+                🏠
+              </button>
+              <button className="w-6 h-6 flex items-center justify-center text-base">
+                📞
+              </button>
+              <button
+                onClick={onClose}
+                className="w-6 h-6 flex items-center justify-center"
+                aria-label="닫기"
+              >
+                <svg
+                  className="w-5 h-5 text-gray-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+        </div>
 
         {/* 콘텐츠 */}
-        <div className="px-5 pb-8">
-          {/* 장소명 및 브랜드 */}
-          <div className="mb-4">
-            <div className="flex items-center gap-2 mb-2">
-              <h2 className="text-xl font-bold text-gray-900">{place.name}</h2>
-              {brandInfo && (
-                <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${brandInfo.color}`}>
-                  {brandInfo.name}
-                </span>
-              )}
+        <div
+          ref={contentRef}
+          className="px-3 pb-3 overflow-y-auto max-h-[90vh]"
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+        >
+          {/* 이미지 컨테이너 */}
+          <div className="h-[360px] px-3 py-0 relative">
+            <div className="w-full h-full bg-gray-100 rounded-md flex items-center justify-center relative">
+              <p className="text-base text-black">Main images of the spot</p>
+              {/* Pagination */}
+              <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1 items-center">
+                <div className="w-5 h-1 bg-white rounded-full"></div>
+                <div className="w-1 h-1 bg-black/30 rounded-full"></div>
+                <div className="w-1 h-1 bg-black/30 rounded-full"></div>
+                <div className="w-1 h-1 bg-black/30 rounded-full"></div>
+              </div>
             </div>
+          </div>
 
-            {/* 거리 정보 */}
+          {/* 매장 이름과 거리 */}
+          <div className="px-3 pt-4">
+            <p className="text-base font-medium text-black">{place.name}</p>
             {distance !== null && (
-              <p className="text-sm text-primary font-medium">
-                📍 {distance < 1000 ? `${distance}m` : `${(distance / 1000).toFixed(1)}km`} 거리
+              <p className="text-xs text-gray-500 mt-1">
+                거리(얼마나 떨어져 있는지)
               </p>
             )}
           </div>
 
-          {/* 타입 태그 */}
-          <div className="flex flex-wrap gap-2 mb-4">
-            {typeInfos.map((info, index) => (
-              <span
-                key={index}
-                className={`inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-full ${info.color}`}
-              >
-                <span>{info.icon}</span>
-                <span>{info.label}</span>
-              </span>
-            ))}
-          </div>
-
-          {/* 주소 */}
-          <div className="mb-4">
-            <h3 className="text-sm font-medium text-gray-500 mb-1">주소</h3>
-            <p className="text-gray-900">{place.address}</p>
-          </div>
-
-          {/* 설명 */}
-          {place.description && (
-            <div className="mb-4">
-              <h3 className="text-sm font-medium text-gray-500 mb-1">설명</h3>
-              <p className="text-gray-700 text-sm">{place.description}</p>
-            </div>
-          )}
-
-          {/* 연락처 */}
-          {place.contact && (
-            <div className="mb-4">
-              <h3 className="text-sm font-medium text-gray-500 mb-1">연락처</h3>
-              <a
-                href={`tel:${place.contact}`}
-                className="text-primary hover:underline"
-              >
-                {place.contact}
-              </a>
-            </div>
-          )}
-
-          {/* 액션 버튼 */}
-          <div className="mt-6 flex gap-3">
+          {/* 액션 버튼 (주소, 영업 시간, 길찾기) */}
+          <div className="px-3 pt-4 flex gap-3 justify-center">
+            <button className="px-3 py-2.5 border border-black/70 rounded-[13px] text-xs text-black">
+              주소
+            </button>
+            <button className="px-3 py-2.5 border border-black/70 rounded-[13px] text-xs text-black">
+              영업 시간
+            </button>
             <button
               onClick={() => {
                 // 네이버 지도로 길찾기
@@ -191,23 +338,39 @@ export default function PlaceDetailSheet({ place, onClose, userLocation }: Place
                   window.open(url, '_blank')
                 }
               }}
-              className="flex-1 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+              className="px-3 py-2.5 border border-black/70 rounded-[13px] text-xs text-black"
             >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
-                />
-              </svg>
               길찾기
             </button>
+          </div>
+
+          {/* Services 섹션 */}
+          <div className="px-3 pt-4">
+            <div className="mb-4">
+              <p className="text-lg font-medium text-black">Services</p>
+              <p className="text-xs text-gray-500">Services that are provided</p>
+            </div>
+            <div className="flex gap-3">
+              {typeInfos.map((info, index) => (
+                <div
+                  key={index}
+                  className="flex-1 flex flex-col items-center justify-center gap-2 py-3"
+                >
+                  <div className="w-[50px] h-[50px] bg-gray-100 rounded-2xl flex items-center justify-center">
+                    <span className="text-xl">{info.icon}</span>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs font-medium text-black leading-tight">
+                      {info.label === '다회용컵 대여' ? '메뉴' : info.label}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 제로 영수증 찍기 버튼 */}
+          <div className="px-3 pt-4 pb-12 flex justify-center">
             <button
               onClick={() => {
                 if (isWithinRange) {
@@ -216,33 +379,12 @@ export default function PlaceDetailSheet({ place, onClose, userLocation }: Place
                 }
               }}
               disabled={!isWithinRange}
-              className={`flex-1 py-3 font-medium rounded-xl transition-colors flex items-center justify-center gap-2 ${
-                isWithinRange
-                  ? 'bg-primary text-white hover:bg-primary-dark'
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              className={`w-full max-w-[304px] bg-gray-500 text-white py-2.5 px-3 rounded-[13px] text-sm font-bold ${
+                !isWithinRange ? 'opacity-50 cursor-not-allowed' : ''
               }`}
               title={!isWithinRange ? '100m 이내에서만 제로영수증을 사용할 수 있습니다' : ''}
             >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              제로영수증
-            </button>
-            <button
-              onClick={onClose}
-              className="flex-1 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition-colors"
-            >
-              닫기
+              제로 영수증 찍기
             </button>
           </div>
         </div>
