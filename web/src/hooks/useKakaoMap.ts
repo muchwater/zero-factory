@@ -237,7 +237,10 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
 
   // userLocation 변경 시 GPS 마커 업데이트
   useEffect(() => {
-    if (!mapInstanceRef.current || !window.kakao) return
+    // 맵이 완전히 로드될 때까지 대기
+    if (!mapInstanceRef.current || !window.kakao || isLoading) {
+      return
+    }
 
     const location = options.userLocation
 
@@ -249,29 +252,36 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
 
     // GPS 위치가 있으면 빨간 점 마커 추가
     if (location) {
-      const markerContent = `
-        <div style="
-          width: 16px;
-          height: 16px;
-          background: #FF0000;
-          border: 3px solid white;
-          border-radius: 50%;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        "></div>
-      `
+      // 약간의 지연을 두어 맵이 완전히 준비된 후 마커 추가
+      const timer = setTimeout(() => {
+        if (!mapInstanceRef.current || !window.kakao) return
 
-      const overlay = new window.kakao.maps.CustomOverlay({
-        position: new window.kakao.maps.LatLng(location.lat, location.lng),
-        content: markerContent,
-        yAnchor: 0.5,
-        xAnchor: 0.5
-      })
+        const markerContent = `
+          <div style="
+            width: 16px;
+            height: 16px;
+            background: #FF0000;
+            border: 3px solid white;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          "></div>
+        `
 
-      overlay.setMap(mapInstanceRef.current)
-      userLocationMarkerRef.current = overlay
-      console.log('GPS 위치 마커 추가:', location.lat, location.lng)
+        const overlay = new window.kakao.maps.CustomOverlay({
+          position: new window.kakao.maps.LatLng(location.lat, location.lng),
+          content: markerContent,
+          yAnchor: 0.5,
+          xAnchor: 0.5
+        })
+
+        overlay.setMap(mapInstanceRef.current)
+        userLocationMarkerRef.current = overlay
+        console.log('GPS 위치 마커 추가:', location.lat, location.lng)
+      }, 200)
+
+      return () => clearTimeout(timer)
     }
-  }, [options.userLocation?.lat, options.userLocation?.lng, isScriptLoaded])
+  }, [options.userLocation?.lat, options.userLocation?.lng, isScriptLoaded, isLoading])
 
   // 마커 추가 함수
   const addMarkers = (markers: MarkerData[]) => {
@@ -319,15 +329,35 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
         overlay.setMap(mapInstanceRef.current)
         markersRef.current.push(overlay)
 
-        // DOM이 렌더링된 후 클릭 이벤트 추가
+        // 클릭 이벤트 추가 (카카오맵 이벤트 시스템 사용)
         if (markerData.onClick) {
           const clickHandler = markerData.onClick
-          setTimeout(() => {
+          
+          // DOM이 렌더링될 때까지 대기 후 이벤트 추가
+          const addClickListener = () => {
             const element = document.getElementById(markerId)
-            if (element && clickHandler) {
-              element.addEventListener('click', clickHandler)
+            if (element) {
+              // 클릭 이벤트 핸들러 (이벤트 버블링 방지)
+              const handleClick = (e: MouseEvent) => {
+                e.preventDefault()
+                e.stopPropagation()
+                clickHandler()
+              }
+              
+              // 기존 이벤트 리스너가 있다면 제거
+              element.removeEventListener('click', handleClick)
+              // 새 이벤트 리스너 추가
+              element.addEventListener('click', handleClick)
+              
+              console.log('마커 클릭 이벤트 추가 완료:', markerData.title)
+            } else {
+              // DOM이 아직 준비되지 않았으면 재시도
+              setTimeout(addClickListener, 100)
             }
-          }, 100)
+          }
+          
+          // 약간의 지연을 두어 DOM이 완전히 렌더링된 후 이벤트 추가
+          setTimeout(addClickListener, 200)
         }
 
         console.log('마커 생성 완료:', markerData.title, 'at', markerData.lat, markerData.lng)
