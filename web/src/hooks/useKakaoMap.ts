@@ -248,7 +248,7 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
   }
 
   // DOM 요소가 준비될 때까지 기다리는 함수
-  const waitForElement = (elementId: string, maxAttempts = 50): Promise<HTMLElement | null> => {
+  const waitForElement = (elementId: string, maxAttempts = 100): Promise<HTMLElement | null> => {
     return new Promise((resolve) => {
       let attempts = 0
       const checkInterval = setInterval(() => {
@@ -263,7 +263,7 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
           console.warn(`요소를 찾을 수 없습니다: ${elementId}`)
           resolve(null)
         }
-      }, 20) // 20ms마다 확인 (최대 1초)
+      }, 50) // 50ms마다 확인 (최대 5초)
     })
   }
 
@@ -384,7 +384,7 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
         overlay.setMap(mapInstanceRef.current)
         markersRef.current.push(overlay)
 
-        // DOM이 렌더링된 후 클릭 이벤트 추가 - 안정적인 방식 사용
+        // CustomOverlay가 DOM에 추가된 후 이벤트 부착
         if (markerData.onClick) {
           const clickHandler = (e: Event) => {
             e.stopPropagation()
@@ -392,22 +392,33 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
             markerData.onClick?.()
           }
 
-          // DOM 요소가 준비될 때까지 기다림
-          waitForElement(markerId).then((element) => {
-            if (element) {
-              // 클릭 이벤트 리스너 추가
-              element.addEventListener('click', clickHandler, { capture: true })
-              // 터치 이벤트도 추가 (모바일)
-              element.addEventListener('touchend', clickHandler, { capture: true })
+          // setMap 후 약간 대기 후 DOM 요소 접근
+          setTimeout(() => {
+            // CustomOverlay의 내부 DOM 요소 찾기
+            const overlayElement = overlay.getContent()
+            if (overlayElement instanceof HTMLElement) {
+              // 클릭 이벤트 추가
+              overlayElement.addEventListener('click', clickHandler, { capture: true })
+              overlayElement.addEventListener('touchend', clickHandler, { capture: true })
               
               // 이벤트 리스너 추적
-              markerEventListenersRef.current.set(markerId, { element, handler: clickHandler })
+              markerEventListenersRef.current.set(markerId, { element: overlayElement, handler: clickHandler })
               
-              console.log('마커 이벤트 리스너 부착 완료:', markerId)
+              console.log('마커 이벤트 리스너 부착 성공:', markerId)
             } else {
-              console.warn('마커 요소를 찾을 수 없습니다:', markerId)
+              console.warn('마커 요소를 getContent()로 찾을 수 없습니다:', markerId)
+              
+              // 폴백: getElementById로 다시 시도
+              waitForElement(markerId).then((element) => {
+                if (element) {
+                  element.addEventListener('click', clickHandler, { capture: true })
+                  element.addEventListener('touchend', clickHandler, { capture: true })
+                  markerEventListenersRef.current.set(markerId, { element, handler: clickHandler })
+                  console.log('마커 이벤트 리스너 부착 성공 (getElementById):', markerId)
+                }
+              })
             }
-          })
+          }, 100)
         }
 
         console.log('마커 생성 완료:', markerData.title, 'at', markerData.lat, markerData.lng)

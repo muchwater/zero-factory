@@ -24,12 +24,15 @@ export default function PlaceDetailSheet({ place, onClose, userLocation }: Place
   // GPS 위치와 가게 위치 간 거리 계산
   const [isWithinRange, setIsWithinRange] = useState<boolean>(false)
   const [dragOffset, setDragOffset] = useState<number>(0)
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState<number>(0)
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
   
   // place가 변경되면 dragOffset 리셋
   useEffect(() => {
     setDragOffset(0)
     isDragging.current = false
     currentTranslateY.current = 0
+    setCurrentPhotoIndex(0) // 사진 인덱스도 초기화
   }, [place])
   
   useEffect(() => {
@@ -300,16 +303,58 @@ export default function PlaceDetailSheet({ place, onClose, userLocation }: Place
         >
           {/* 이미지 컨테이너 */}
           <div className="h-[360px] px-3 py-0 relative">
-            <div className="w-full h-full bg-gray-100 rounded-md flex items-center justify-center relative">
-              <p className="text-base text-black">Main images of the spot</p>
-              {/* Pagination */}
-              <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1 items-center">
-                <div className="w-5 h-1 bg-white rounded-full"></div>
-                <div className="w-1 h-1 bg-black/30 rounded-full"></div>
-                <div className="w-1 h-1 bg-black/30 rounded-full"></div>
-                <div className="w-1 h-1 bg-black/30 rounded-full"></div>
+            {place.photos && place.photos.length > 0 ? (
+              <div className="w-full h-full bg-gray-100 rounded-md overflow-hidden relative">
+                {/* 사진 표시 */}
+                <img
+                  src={`${API_BASE_URL}${place.photos[currentPhotoIndex]}`}
+                  alt={`${place.name} ${currentPhotoIndex + 1}`}
+                  className="w-full h-full object-cover"
+                />
+                
+                {/* 좌우 화살표 (사진이 2개 이상일 때) */}
+                {place.photos.length > 1 && (
+                  <>
+                    <button
+                      onClick={() => setCurrentPhotoIndex((prev) => (prev === 0 ? place.photos!.length - 1 : prev - 1))}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-colors"
+                      aria-label="이전 사진"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => setCurrentPhotoIndex((prev) => (prev === place.photos!.length - 1 ? 0 : prev + 1))}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white p-2 rounded-full transition-colors"
+                      aria-label="다음 사진"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </>
+                )}
+                
+                {/* Pagination */}
+                <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1 items-center">
+                  {place.photos.map((_, index) => (
+                    <div
+                      key={index}
+                      className={`rounded-full transition-all ${
+                        index === currentPhotoIndex
+                          ? 'w-5 h-1 bg-white'
+                          : 'w-1 h-1 bg-white/50'
+                      }`}
+                    ></div>
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="w-full h-full bg-gray-100 rounded-md flex items-center justify-center relative">
+                <p className="text-base text-gray-400">등록된 사진이 없습니다</p>
+              </div>
+            )}
           </div>
 
           {/* 매장 이름과 거리 */}

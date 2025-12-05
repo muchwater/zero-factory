@@ -52,6 +52,7 @@ model Place {
   location      Unsupported("geography(Point,4326)")?
   types         PlaceType[]
   contact       String?
+  photos        String[] // 가게 사진 경로 배열
   openingHours  StoreOpeningHour[]
   exceptions    StoreOpeningHourException[]
   transactions  PointTransaction[]

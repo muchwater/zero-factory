@@ -14,7 +14,7 @@ import { ReceiptsModule } from '../receipts/receipts.module';
   imports: [
     ConfigModule,
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', '..', 'uploads'),
+      rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
     }),
     PlacesModule,

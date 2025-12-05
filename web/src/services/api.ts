@@ -108,6 +108,37 @@ export const placesApi = {
       }),
     })
   },
+
+  // 장소 사진 업로드
+  uploadPhotos: async (placeId: number, photoFiles: File[]): Promise<Place> => {
+    const formData = new FormData()
+    photoFiles.forEach((file) => {
+      formData.append('photos', file)
+    })
+
+    const response = await fetch(`${API_BASE_URL}/places/${placeId}/photos`, {
+      method: 'POST',
+      body: formData,
+    })
+
+    if (!response.ok) {
+      throw new ApiError(response.status, `HTTP error! status: ${response.status}`)
+    }
+
+    return response.json()
+  },
+
+  // 장소 사진 삭제
+  deletePhoto: (placeId: number, photoIndex: number): Promise<Place> => {
+    return fetchApi<Place>(`/places/${placeId}/photos/${photoIndex}`, {
+      method: 'DELETE',
+    })
+  },
+
+  // 장소 사진 목록 조회
+  getPlacePhotos: (placeId: number): Promise<string[]> => {
+    return fetchApi<string[]>(`/places/${placeId}/photos`)
+  },
 }
 
 // 헬스체크 API

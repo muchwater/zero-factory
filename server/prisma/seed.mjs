@@ -63,8 +63,9 @@ async function main() {
         description: cafe.description,
         address: cafe.address,
         category: PlaceCategory.STORE,
-        types: [PlaceType.RENT,], // 대여 + 포인트 적립
+        types: [PlaceType.RENT], // 대여 + 포인트 적립
         contact: cafe.contact,
+        state: "ACTIVE",
         openingHours: {
           create: Array.from({ length: 7 }).map((_, day) => ({
             dayOfWeek: day,
@@ -72,7 +73,6 @@ async function main() {
             openTime: day === 0 ? null : '09:00',
             closeTime: day === 0 ? null : '21:00', // 카페는 21시까지
           })),
-          state: "ACTIVE",
         },
       },
       cafe.lng,

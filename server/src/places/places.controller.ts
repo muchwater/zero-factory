@@ -1,5 +1,9 @@
-import { Controller, Get, Post, Param, Query, Body, Logger, Put, Headers } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import { Controller, Get, Post, Param, Query, Body, Logger, Put, Headers, UseInterceptors, UploadedFiles, Delete, NotFoundException, BadRequestException } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiConsumes } from '@nestjs/swagger';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { v4 as uuidv4 } from 'uuid';
+import * as path from 'path';
 import { PlacesService } from './places.service';
 import { PlaceDto } from './dto/place.dto';
 import { PlaceNearbyDto } from './dto/place-nearby.dto';
@@ -86,5 +90,61 @@ export class PlacesController {
     const brand = (body as any)?.brand as 'SUNHWA' | 'UTURN' | undefined;
     this.logger.log(`🔄 PUT /places/status/${id} - status=${status}, brand=${brand}`);
     return this.placesService.updatePlaceStatus(Number(id), status, brand);
+  }
+
+  @Post(':id/photos')
+  @ApiOperation({ summary: '장소에 사진 업로드' })
+  @ApiConsumes('multipart/form-data')
+  @ApiResponse({ status: 201, type: PlaceDto })
+  @UseInterceptors(
+    FilesInterceptor('photos', 10, {
+      storage: diskStorage({
+        destination: './uploads/places',
+        filename: (req, file, cb) => {
+          const uniqueName = `${uuidv4()}${path.extname(file.originalname)}`;
+          cb(null, uniqueName);
+        },
+      }),
+      fileFilter: (req, file, cb) => {
+        if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
+          return cb(new BadRequestException('이미지 파일만 업로드 가능합니다.'), false);
+        }
+        cb(null, true);
+      },
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB
+      },
+    }),
+  )
+  async uploadPhotos(
+    @Param('id') id: string,
+    @UploadedFiles() files: Express.Multer.File[],
+  ) {
+    this.logger.log(`📸 POST /places/${id}/photos - Uploading ${files?.length || 0} photos`);
+
+    if (!files || files.length === 0) {
+      throw new BadRequestException('업로드할 사진이 없습니다.');
+    }
+
+    const photoPaths = files.map(file => `/uploads/places/${file.filename}`);
+    return this.placesService.addPhotos(Number(id), photoPaths);
+  }
+
+  @Delete(':id/photos/:index')
+  @ApiOperation({ summary: '장소 사진 삭제' })
+  @ApiResponse({ status: 200, type: PlaceDto })
+  async deletePhoto(
+    @Param('id') id: string,
+    @Param('index') index: string,
+  ) {
+    this.logger.log(`🗑️ DELETE /places/${id}/photos/${index}`);
+    return this.placesService.deletePhoto(Number(id), Number(index));
+  }
+
+  @Get(':id/photos')
+  @ApiOperation({ summary: '장소 사진 목록 조회' })
+  @ApiResponse({ status: 200, type: [String] })
+  async getPlacePhotos(@Param('id') id: string) {
+    return this.placesService.getPlacePhotos(Number(id));
   }
 }

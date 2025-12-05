@@ -219,4 +219,77 @@ export class PlacesService {
       },
     });
   }
+
+  async addPhotos(placeId: number, photoPaths: string[]) {
+    this.logger.log(`📸 Adding ${photoPaths.length} photos to place ID ${placeId}`);
+    
+    const place = await this.prisma.place.findUnique({
+      where: { id: placeId },
+      select: { photos: true },
+    });
+
+    if (!place) {
+      throw new Error('Place not found');
+    }
+
+    const updatedPhotos = [...(place.photos || []), ...photoPaths];
+
+    await this.prisma.place.update({
+      where: { id: placeId },
+      data: { photos: updatedPhotos },
+    });
+
+    this.logger.log(`✅ Successfully added photos to place ID ${placeId}`);
+    
+    return this.prisma.place.findUnique({
+      where: { id: placeId },
+      include: {
+        openingHours: true,
+        exceptions: true,
+      },
+    });
+  }
+
+  async deletePhoto(placeId: number, photoIndex: number) {
+    this.logger.log(`🗑️ Deleting photo at index ${photoIndex} from place ID ${placeId}`);
+    
+    const place = await this.prisma.place.findUnique({
+      where: { id: placeId },
+      select: { photos: true },
+    });
+
+    if (!place) {
+      throw new Error('Place not found');
+    }
+
+    if (!place.photos || photoIndex >= place.photos.length) {
+      throw new Error('Invalid photo index');
+    }
+
+    const updatedPhotos = place.photos.filter((_, index) => index !== photoIndex);
+
+    await this.prisma.place.update({
+      where: { id: placeId },
+      data: { photos: updatedPhotos },
+    });
+
+    this.logger.log(`✅ Successfully deleted photo from place ID ${placeId}`);
+    
+    return this.prisma.place.findUnique({
+      where: { id: placeId },
+      include: {
+        openingHours: true,
+        exceptions: true,
+      },
+    });
+  }
+
+  async getPlacePhotos(placeId: number): Promise<string[]> {
+    const place = await this.prisma.place.findUnique({
+      where: { id: placeId },
+      select: { photos: true },
+    });
+
+    return place?.photos || [];
+  }
 }

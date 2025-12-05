@@ -12,6 +12,7 @@ export interface Place {
   }
   types: ('RENT' | 'RETURN' | 'BONUS' | 'CLEAN')[]
   contact?: string
+  photos?: string[] // 가게 사진 경로 배열
   reportedBrand?: string // 제보자가 입력한 서비스명
   brand?: 'SUNHWA' | 'UTURN' // 관리자가 승인 시 선택한 브랜드
   openingHours: StoreOpeningHour[]
@@ -48,6 +49,7 @@ export interface PlaceNearby {
   category: 'STORE' | 'FACILITY'
   types: ('RENT' | 'RETURN' | 'BONUS' | 'CLEAN')[]
   contact?: string
+  photos?: string[] // 가게 사진 경로 배열
   brand?: 'SUNHWA' | 'UTURN' // 관리자가 승인 시 선택한 브랜드
   distance: number // 미터 단위
   location?: {

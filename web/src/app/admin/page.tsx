@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { adminApi, ApiError, AdminMember } from '@/services/api'
+import { adminApi, placesApi, ApiError, AdminMember } from '@/services/api'
 import type { Place } from '@/types/api'
 
 export default function AdminPage() {
@@ -18,6 +18,9 @@ export default function AdminPage() {
   const [authError, setAuthError] = useState<string | null>(null)
   const [selectedBrands, setSelectedBrands] = useState<{ [key: number]: string }>({})
   const [activeTab, setActiveTab] = useState<'places' | 'members'>('places')
+  const [uploadingPhotos, setUploadingPhotos] = useState<{ [key: number]: boolean }>({})
+  const [selectedFiles, setSelectedFiles] = useState<{ [key: number]: File[] }>({})
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || ''
 
   // 인증 확인
   useEffect(() => {
@@ -186,6 +189,73 @@ export default function AdminPage() {
       ...prev,
       [placeId]: brand
     }))
+  }
+
+  const handleFileSelect = (placeId: number, files: FileList | null) => {
+    if (!files || files.length === 0) return
+
+    const fileArray = Array.from(files)
+    const validFiles = fileArray.filter(file => {
+      const isImage = file.type.startsWith('image/')
+      const isUnder5MB = file.size <= 5 * 1024 * 1024
+      return isImage && isUnder5MB
+    })
+
+    if (validFiles.length !== fileArray.length) {
+      alert('이미지 파일만 업로드 가능하며, 각 파일은 5MB 이하여야 합니다.')
+    }
+
+    setSelectedFiles(prev => ({
+      ...prev,
+      [placeId]: [...(prev[placeId] || []), ...validFiles]
+    }))
+  }
+
+  const handleRemoveFile = (placeId: number, fileIndex: number) => {
+    setSelectedFiles(prev => ({
+      ...prev,
+      [placeId]: prev[placeId].filter((_, index) => index !== fileIndex)
+    }))
+  }
+
+  const handleUploadPhotos = async (placeId: number) => {
+    const files = selectedFiles[placeId]
+    if (!files || files.length === 0) {
+      alert('업로드할 사진을 선택해주세요.')
+      return
+    }
+
+    setUploadingPhotos(prev => ({ ...prev, [placeId]: true }))
+
+    try {
+      await placesApi.uploadPhotos(placeId, files)
+      // 성공 후 파일 목록 초기화
+      setSelectedFiles(prev => ({
+        ...prev,
+        [placeId]: []
+      }))
+      // 장소 목록 새로고침
+      await loadPendingPlaces()
+      alert('사진이 성공적으로 업로드되었습니다.')
+    } catch (err) {
+      console.error('Photo upload error:', err)
+      alert('사진 업로드에 실패했습니다.')
+    } finally {
+      setUploadingPhotos(prev => ({ ...prev, [placeId]: false }))
+    }
+  }
+
+  const handleDeletePhoto = async (placeId: number, photoIndex: number) => {
+    if (!confirm('이 사진을 삭제하시겠습니까?')) return
+
+    try {
+      await placesApi.deletePhoto(placeId, photoIndex)
+      await loadPendingPlaces()
+      alert('사진이 삭제되었습니다.')
+    } catch (err) {
+      console.error('Photo delete error:', err)
+      alert('사진 삭제에 실패했습니다.')
+    }
   }
 
   // 로그인 페이지
@@ -408,6 +478,94 @@ export default function AdminPage() {
                           </select>
                         </div>
                       )}
+
+                      {/* 사진 관리 섹션 */}
+                      <div className="mb-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                        <h4 className="text-sm font-medium text-gray-700 mb-3">가게 사진 관리</h4>
+                        
+                        {/* 업로드된 사진 표시 */}
+                        {place.photos && place.photos.length > 0 && (
+                          <div className="mb-3">
+                            <p className="text-xs text-gray-600 mb-2">업로드된 사진 ({place.photos.length}개)</p>
+                            <div className="grid grid-cols-4 gap-2">
+                              {place.photos.map((photo, index) => (
+                                <div key={index} className="relative group">
+                                  <img
+                                    src={`${API_BASE_URL}${photo}`}
+                                    alt={`가게 사진 ${index + 1}`}
+                                    className="w-full h-20 object-cover rounded-lg"
+                                  />
+                                  <button
+                                    onClick={() => handleDeletePhoto(place.id, index)}
+                                    className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                    title="사진 삭제"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 파일 선택 */}
+                        <div className="mb-3">
+                          <input
+                            type="file"
+                            id={`photo-upload-${place.id}`}
+                            multiple
+                            accept="image/*"
+                            onChange={(e) => handleFileSelect(place.id, e.target.files)}
+                            className="hidden"
+                          />
+                          <label
+                            htmlFor={`photo-upload-${place.id}`}
+                            className="block w-full px-4 py-2 bg-white border-2 border-dashed border-purple-300 rounded-lg text-center cursor-pointer hover:border-purple-500 transition-colors"
+                          >
+                            <span className="text-sm text-gray-600">클릭하여 사진 선택 (최대 10개)</span>
+                          </label>
+                        </div>
+
+                        {/* 선택된 파일 미리보기 */}
+                        {selectedFiles[place.id] && selectedFiles[place.id].length > 0 && (
+                          <div className="mb-3">
+                            <p className="text-xs text-gray-600 mb-2">선택된 파일 ({selectedFiles[place.id].length}개)</p>
+                            <div className="grid grid-cols-4 gap-2">
+                              {selectedFiles[place.id].map((file, index) => (
+                                <div key={index} className="relative group">
+                                  <img
+                                    src={URL.createObjectURL(file)}
+                                    alt={file.name}
+                                    className="w-full h-20 object-cover rounded-lg"
+                                  />
+                                  <button
+                                    onClick={() => handleRemoveFile(place.id, index)}
+                                    className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                    title="제거"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* 업로드 버튼 */}
+                        {selectedFiles[place.id] && selectedFiles[place.id].length > 0 && (
+                          <button
+                            onClick={() => handleUploadPhotos(place.id)}
+                            disabled={uploadingPhotos[place.id]}
+                            className="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {uploadingPhotos[place.id] ? '업로드 중...' : '사진 업로드'}
+                          </button>
+                        )}
+                      </div>
 
                       <div className="flex gap-3 pt-4 border-t border-gray-200">
                         <button
