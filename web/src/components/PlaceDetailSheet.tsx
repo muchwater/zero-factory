@@ -424,10 +424,8 @@ export default function PlaceDetailSheet({ place, onClose, userLocation }: Place
                 }
               }}
               disabled={!isWithinRange}
-              className={`w-full max-w-[304px] text-white py-2.5 px-3 rounded-[13px] text-sm font-bold ${
-                !isWithinRange 
-                  ? 'bg-gray-500 opacity-50 cursor-not-allowed' 
-                  : 'bg-green-500 hover:bg-green-600'
+              className={`w-full max-w-[304px] bg-gray-500 text-white py-2.5 px-3 rounded-[13px] text-sm font-bold ${
+                !isWithinRange ? 'opacity-50 cursor-not-allowed' : ''
               }`}
               title={!isWithinRange ? '100m 이내에서만 제로영수증을 사용할 수 있습니다' : ''}
             >

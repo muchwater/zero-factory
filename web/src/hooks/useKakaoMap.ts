@@ -7,7 +7,6 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
   const markersRef = useRef<any[]>([])  // 생성된 마커들을 추적
-  const markerEventListenersRef = useRef<Map<string, { element: HTMLElement; handler: () => void }>>(new Map())  // 이벤트 리스너 추적
 
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -118,11 +117,6 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
     return () => {
       if (mapInstanceRef.current) {
         console.log('카카오맵 정리')
-        // 모든 이벤트 리스너 제거
-        markerEventListenersRef.current.forEach(({ element, handler }) => {
-          element.removeEventListener('click', handler)
-        })
-        markerEventListenersRef.current.clear()
         mapInstanceRef.current = null
       }
     }
@@ -247,35 +241,8 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
     `
   }
 
-  // DOM 요소가 준비될 때까지 기다리는 함수
-  const waitForElement = (elementId: string, maxAttempts = 100): Promise<HTMLElement | null> => {
-    return new Promise((resolve) => {
-      let attempts = 0
-      const checkInterval = setInterval(() => {
-        const element = document.getElementById(elementId)
-        attempts++
-        
-        if (element) {
-          clearInterval(checkInterval)
-          resolve(element)
-        } else if (attempts >= maxAttempts) {
-          clearInterval(checkInterval)
-          console.warn(`요소를 찾을 수 없습니다: ${elementId}`)
-          resolve(null)
-        }
-      }, 50) // 50ms마다 확인 (최대 5초)
-    })
-  }
-
   // 기존 마커 모두 제거
   const clearMarkers = () => {
-    // 이벤트 리스너 제거
-    markerEventListenersRef.current.forEach(({ element, handler }) => {
-      element.removeEventListener('click', handler)
-    })
-    markerEventListenersRef.current.clear()
-
-    // 마커 제거
     markersRef.current.forEach((overlay) => {
       overlay.setMap(null)
     })
@@ -364,59 +331,32 @@ export const useKakaoMap = (options: KakaoMapOptions = {}) => {
         // 마커 컨텐츠 생성 (이미지 또는 이모지)
         let markerContent = markerData.icon
         if (markerData.imageUrl) {
-          markerContent = `<img src="${markerData.imageUrl}" alt="marker" style="width: 100%; height: 100%; object-fit: contain; pointer-events: none;" />`
+          markerContent = `<img src="${markerData.imageUrl}" alt="marker" style="width: 100%; height: 100%; object-fit: contain;" />`
         }
 
         // 커스텀 오버레이 생성
         const overlay = new window.kakao.maps.CustomOverlay({
           position: new window.kakao.maps.LatLng(markerData.lat, markerData.lng),
           content: `
-            <div id="${markerId}" style="${styleString}; cursor: pointer; z-index: 100; pointer-events: auto;" class="marker-overlay" data-place-id="${markerData.placeId || ''}">
+            <div id="${markerId}" style="${styleString}; cursor: pointer; z-index: 100;" class="marker-overlay" data-place-id="${markerData.placeId || ''}">
               ${plusIcon}
               ${markerContent}
             </div>
           `,
           yAnchor: 1.2,
-          zIndex: 100,
-          clickable: true  // 클릭 가능하도록 설정
+          zIndex: 100  // 가게 마커는 GPS 마커보다 낮은 z-index
         })
 
         overlay.setMap(mapInstanceRef.current)
         markersRef.current.push(overlay)
 
-        // CustomOverlay가 DOM에 추가된 후 이벤트 부착
+        // DOM이 렌더링된 후 클릭 이벤트 추가
         if (markerData.onClick) {
-          const clickHandler = (e: Event) => {
-            e.stopPropagation()
-            console.log('마커 클릭됨:', markerData.title, markerData.placeId)
-            markerData.onClick?.()
-          }
-
-          // setMap 후 약간 대기 후 DOM 요소 접근
+          const clickHandler = markerData.onClick
           setTimeout(() => {
-            // CustomOverlay의 내부 DOM 요소 찾기
-            const overlayElement = overlay.getContent()
-            if (overlayElement instanceof HTMLElement) {
-              // 클릭 이벤트 추가
-              overlayElement.addEventListener('click', clickHandler, { capture: true })
-              overlayElement.addEventListener('touchend', clickHandler, { capture: true })
-              
-              // 이벤트 리스너 추적
-              markerEventListenersRef.current.set(markerId, { element: overlayElement, handler: clickHandler })
-              
-              console.log('마커 이벤트 리스너 부착 성공:', markerId)
-            } else {
-              console.warn('마커 요소를 getContent()로 찾을 수 없습니다:', markerId)
-              
-              // 폴백: getElementById로 다시 시도
-              waitForElement(markerId).then((element) => {
-                if (element) {
-                  element.addEventListener('click', clickHandler, { capture: true })
-                  element.addEventListener('touchend', clickHandler, { capture: true })
-                  markerEventListenersRef.current.set(markerId, { element, handler: clickHandler })
-                  console.log('마커 이벤트 리스너 부착 성공 (getElementById):', markerId)
-                }
-              })
+            const element = document.getElementById(markerId)
+            if (element && clickHandler) {
+              element.addEventListener('click', clickHandler)
             }
           }, 100)
         }
